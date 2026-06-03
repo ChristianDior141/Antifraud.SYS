@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="880" viewBox="0 0 1280 880" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#475569"/>
+    </marker>
+    <marker id="arrowR" markerWidth="10" markerHeight="10" refX="0" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M8,0 L0,3 L8,6 Z" fill="#475569"/>
+    </marker>
+    <style>
+      .title { font-size: 26px; font-weight: 700; fill: #0f172a; }
+      .colhead { font-size: 15px; font-weight: 700; fill: #1e293b; letter-spacing: .5px; }
+      .box { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.5; }
+      .boxL { fill: #eff6ff; stroke: #3b82f6; stroke-width: 1.5; }
+      .boxR { fill: #f0fdf4; stroke: #22c55e; stroke-width: 1.5; }
+      .boxC { fill: #ffffff; stroke: #6366f1; stroke-width: 1.5; }
+      .platform { fill: #eef2ff; stroke: #6366f1; stroke-width: 2.5; }
+      .label { font-size: 14px; font-weight: 600; fill: #0f172a; }
+      .sub { font-size: 11.5px; fill: #64748b; }
+      .conn { font-size: 12px; font-weight: 700; fill: #475569; }
+      .deploy { fill: #1e293b; }
+      .deploytext { font-size: 13px; font-weight: 600; fill: #ffffff; }
+      .line { stroke: #94a3b8; stroke-width: 2; }
+    </style>
+  </defs>
+
+  <rect width="1280" height="880" fill="#f8fafc"/>
+  <text x="640" y="48" text-anchor="middle" class="title">Архитектура интеграции платформы KYC/AML</text>
+
+  <!-- Column headers -->
+  <text x="180" y="92" text-anchor="middle" class="colhead">ВНУТРЕННИЕ СИСТЕМЫ ОРГАНИЗАЦИИ</text>
+  <text x="640" y="92" text-anchor="middle" class="colhead">KYC/AML ПЛАТФОРМА</text>
+  <text x="1100" y="92" text-anchor="middle" class="colhead">ВНЕШНИЕ ИСТОЧНИКИ ДАННЫХ</text>
+
+  <!-- LEFT: internal systems -->
+  <g>
+    <rect x="40" y="120" width="280" height="64" rx="10" class="boxL"/>
+    <text x="180" y="148" text-anchor="middle" class="label">Core Banking System (АБС)</text>
+    <text x="180" y="168" text-anchor="middle" class="sub">Открытие счетов, ведение клиентов</text>
+
+    <rect x="40" y="204" width="280" height="64" rx="10" class="boxL"/>
+    <text x="180" y="232" text-anchor="middle" class="label">CRM-система</text>
+    <text x="180" y="252" text-anchor="middle" class="sub">Карточка клиента, продажи</text>
+
+    <rect x="40" y="288" width="280" height="64" rx="10" class="boxL"/>
+    <text x="180" y="316" text-anchor="middle" class="label">Мобильный / интернет-банк</text>
+    <text x="180" y="336" text-anchor="middle" class="sub">Онбординг клиента онлайн</text>
+
+    <rect x="40" y="372" width="280" height="64" rx="10" class="boxL"/>
+    <text x="180" y="400" text-anchor="middle" class="label">ERP / Бэк-офис</text>
+    <text x="180" y="420" text-anchor="middle" class="sub">Учёт, отчётность, документооборот</text>
+  </g>
+
+  <!-- MIDDLE: platform -->
+  <rect x="400" y="110" width="480" height="500" rx="16" class="platform"/>
+
+  <rect x="430" y="140" width="420" height="58" rx="10" class="boxC"/>
+  <text x="640" y="166" text-anchor="middle" class="label">Frontend — Веб-интерфейс (React + TypeScript)</text>
+  <text x="640" y="184" text-anchor="middle" class="sub">Дашборды, KYC-формы, AML-мониторинг</text>
+
+  <rect x="430" y="214" width="420" height="58" rx="10" class="boxC"/>
+  <text x="640" y="240" text-anchor="middle" class="label">Backend API — FastAPI (REST / OpenAPI)</text>
+  <text x="640" y="258" text-anchor="middle" class="sub">Точка интеграции со всеми системами</text>
+
+  <rect x="430" y="288" width="200" height="74" rx="10" class="boxC"/>
+  <text x="530" y="318" text-anchor="middle" class="label">Risk Engine</text>
+  <text x="530" y="338" text-anchor="middle" class="sub">Расчёт риск-скоринга</text>
+
+  <rect x="650" y="288" width="200" height="74" rx="10" class="boxC"/>
+  <text x="750" y="318" text-anchor="middle" class="label">AML Engine</text>
+  <text x="750" y="338" text-anchor="middle" class="sub">Правила, алерты</text>
+
+  <rect x="430" y="378" width="200" height="64" rx="10" class="box"/>
+  <text x="530" y="406" text-anchor="middle" class="label">PostgreSQL</text>
+  <text x="530" y="425" text-anchor="middle" class="sub">База данных</text>
+
+  <rect x="650" y="378" width="200" height="64" rx="10" class="box"/>
+  <text x="750" y="406" text-anchor="middle" class="label">Redis</text>
+  <text x="750" y="425" text-anchor="middle" class="sub">Кэш / очереди</text>
+
+  <!-- Integration methods inside platform -->
+  <rect x="430" y="466" width="420" height="120" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <text x="640" y="492" text-anchor="middle" class="colhead">СПОСОБЫ ИНТЕГРАЦИИ</text>
+  <text x="640" y="520" text-anchor="middle" class="label">• REST API — запрос/ответ (риск-оценка, статус)</text>
+  <text x="640" y="544" text-anchor="middle" class="label">• Webhooks — уведомления о срабатывании AML-алерта</text>
+  <text x="640" y="568" text-anchor="middle" class="label">• Batch — массовая проверка существующей базы</text>
+
+  <!-- RIGHT: external sources -->
+  <g>
+    <rect x="960" y="120" width="280" height="56" rx="10" class="boxR"/>
+    <text x="1100" y="146" text-anchor="middle" class="label">Санкционные списки</text>
+    <text x="1100" y="164" text-anchor="middle" class="sub">OFAC, EU, UN, Росфинмониторинг</text>
+
+    <rect x="960" y="186" width="280" height="56" rx="10" class="boxR"/>
+    <text x="1100" y="212" text-anchor="middle" class="label">PEP-базы</text>
+    <text x="1100" y="230" text-anchor="middle" class="sub">Публичные должностные лица</text>
+
+    <rect x="960" y="252" width="280" height="56" rx="10" class="boxR"/>
+    <text x="1100" y="278" text-anchor="middle" class="label">Бюро кредитных историй</text>
+    <text x="1100" y="296" text-anchor="middle" class="sub">Кредитный скоринг</text>
+
+    <rect x="960" y="318" width="280" height="56" rx="10" class="boxR"/>
+    <text x="1100" y="344" text-anchor="middle" class="label">OCR / Биометрия</text>
+    <text x="1100" y="362" text-anchor="middle" class="sub">Regula, Onfido, Sumsub</text>
+
+    <rect x="960" y="384" width="280" height="56" rx="10" class="boxR"/>
+    <text x="1100" y="410" text-anchor="middle" class="label">Государственные реестры</text>
+    <text x="1100" y="428" text-anchor="middle" class="sub">Проверка паспортов, ИНН</text>
+  </g>
+
+  <!-- Connectors left <-> platform -->
+  <line x1="320" y1="243" x2="400" y2="243" class="line" marker-end="url(#arrow)" marker-start="url(#arrowR)"/>
+  <text x="360" y="234" text-anchor="middle" class="conn">REST</text>
+
+  <!-- Connectors platform <-> right -->
+  <line x1="880" y1="300" x2="960" y2="300" class="line" marker-end="url(#arrow)" marker-start="url(#arrowR)"/>
+  <text x="920" y="291" text-anchor="middle" class="conn">API</text>
+
+  <!-- DEPLOYMENT bar -->
+  <rect x="40" y="660" width="1200" height="170" rx="16" fill="#0f172a"/>
+  <text x="640" y="694" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">РАЗВЁРТЫВАНИЕ (Контейнеризация Docker)</text>
+
+  <rect x="80" y="716" width="340" height="86" rx="10" fill="#1e40af"/>
+  <text x="250" y="748" text-anchor="middle" class="deploytext">Облако</text>
+  <text x="250" y="772" text-anchor="middle" font-size="12" fill="#cbd5e1">AWS · Azure · Google Cloud · Yandex</text>
+
+  <rect x="470" y="716" width="340" height="86" rx="10" fill="#7c3aed"/>
+  <text x="640" y="748" text-anchor="middle" class="deploytext">On-premise</text>
+  <text x="640" y="772" text-anchor="middle" font-size="12" fill="#e9d5ff">Серверы организации (требования ЦБ)</text>
+
+  <rect x="860" y="716" width="340" height="86" rx="10" fill="#0891b2"/>
+  <text x="1030" y="748" text-anchor="middle" class="deploytext">Гибрид</text>
+  <text x="1030" y="772" text-anchor="middle" font-size="12" fill="#cffafe">Данные локально · аналитика в облаке</text>
+
+  <!-- connector platform to deployment -->
+  <line x1="640" y1="610" x2="640" y2="660" class="line" marker-end="url(#arrow)"/>
+</svg>

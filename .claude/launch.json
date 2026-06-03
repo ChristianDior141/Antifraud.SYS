@@ -1,0 +1,15 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "frontend",
+      "runtimeExecutable": "C:\\Program Files\\nodejs\\node-v19.9.0-win-x64\\npm.cmd",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000,
+      "cwd": "C:\\Users\\User\\Desktop\\Dissertation\\kyc-aml-platform\\frontend",
+      "env": {
+        "PATH": "C:\\Program Files\\nodejs\\node-v19.9.0-win-x64;${env:PATH}"
+      }
+    }
+  ]
+}
