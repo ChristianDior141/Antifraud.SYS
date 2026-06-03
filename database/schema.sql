@@ -422,3 +422,50 @@ CREATE TABLE rule_tuning_history (
     created_at          TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX idx_rule_tuning_history_rule ON rule_tuning_history(rule_id);
+
+-- =============================================================
+-- GDPR / PRIVACY (Stage 2)
+-- =============================================================
+
+-- Audit-log hash chain (tamper-evidence, ISO 27001 A.12.4.2)
+ALTER TABLE audit_logs ADD COLUMN prev_hash  VARCHAR(64);
+ALTER TABLE audit_logs ADD COLUMN entry_hash VARCHAR(64);
+CREATE INDEX idx_audit_logs_entry_hash ON audit_logs(entry_hash);
+
+-- Client data lifecycle (retention, restriction, anonymization)
+ALTER TABLE client_profiles ADD COLUMN retention_until       TIMESTAMPTZ;
+ALTER TABLE client_profiles ADD COLUMN processing_restricted BOOLEAN DEFAULT FALSE;
+ALTER TABLE client_profiles ADD COLUMN anonymized_at         TIMESTAMPTZ;
+
+CREATE TYPE dsar_type AS ENUM ('access','export','erasure','restriction','rectification');
+CREATE TYPE dsar_status AS ENUM ('received','in_progress','completed','rejected');
+
+-- Data-subject requests (GDPR Art.15–20)
+CREATE TABLE data_subject_requests (
+    id                  SERIAL PRIMARY KEY,
+    user_id             INTEGER NOT NULL REFERENCES users(id),
+    request_type        dsar_type NOT NULL,
+    status              dsar_status NOT NULL DEFAULT 'received',
+    details             TEXT,
+    resolution_notes    TEXT,
+    handled_by          INTEGER REFERENCES users(id),
+    legal_hold          BOOLEAN DEFAULT FALSE,   -- AML retention blocks erasure
+    due_at              TIMESTAMPTZ,             -- 30-day response SLA
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    completed_at        TIMESTAMPTZ
+);
+CREATE INDEX idx_dsar_user ON data_subject_requests(user_id);
+
+-- Versioned, revocable consent records (GDPR Art.7)
+CREATE TABLE consents (
+    id                  SERIAL PRIMARY KEY,
+    user_id             INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    purpose             VARCHAR(100) NOT NULL,
+    policy_version      VARCHAR(20) NOT NULL DEFAULT '1.0',
+    granted             BOOLEAN NOT NULL DEFAULT TRUE,
+    granted_at          TIMESTAMPTZ,
+    revoked_at          TIMESTAMPTZ,
+    ip_address          VARCHAR(45),
+    created_at          TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_consents_user ON consents(user_id);

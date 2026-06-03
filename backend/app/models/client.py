@@ -78,6 +78,12 @@ class ClientProfile(Base):
     # Metadata
     ip_address = Column(String(45), nullable=True)
     device_fingerprint = Column(String(255), nullable=True)
+
+    # GDPR data lifecycle
+    retention_until = Column(DateTime(timezone=True), nullable=True)  # purge/anonymize after
+    processing_restricted = Column(Boolean, default=False)            # Art.18 restriction
+    anonymized_at = Column(DateTime(timezone=True), nullable=True)    # set on erasure
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import List, Optional
@@ -9,6 +9,7 @@ from app.models.client import ClientProfile, KYCStatus
 from app.models.risk import RiskScore
 from app.schemas.client import ClientProfileCreate, ClientProfileUpdate, ClientProfileResponse, ClientListResponse
 from app.services.risk_engine import calculate_risk_score
+from app.services.audit_service import log_pii_access
 
 router = APIRouter(prefix="/clients", tags=["Clients"])
 
@@ -96,6 +97,7 @@ async def list_clients(
 @router.get("/{client_id}", response_model=ClientProfileResponse)
 async def get_client(
     client_id: int,
+    request: Request,
     current_user: User = Depends(require_analyst),
     db: AsyncSession = Depends(get_db),
 ):
@@ -103,6 +105,13 @@ async def get_client(
     profile = result.scalar_one_or_none()
     if not profile:
         raise HTTPException(status_code=404, detail="Client not found")
+    # GDPR Art.30 / ISO A.12.4.1 — record staff access to personal data.
+    await log_pii_access(
+        db, user_id=current_user.id, resource_type="client_profile",
+        resource_id=client_id,
+        ip_address=request.client.host if request.client else None,
+    )
+    await db.commit()
     return profile
 
 

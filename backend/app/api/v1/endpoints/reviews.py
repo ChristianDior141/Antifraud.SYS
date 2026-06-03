@@ -8,7 +8,8 @@ from app.core.deps import require_compliance
 from app.models.user import User
 from app.models.client import ClientProfile, KYCStatus
 from app.models.review import Review, ReviewDecision
-from app.models.audit import AuditLog, Notification
+from app.models.audit import Notification
+from app.services.audit_service import record_audit
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/reviews", tags=["Compliance Reviews"])
@@ -94,14 +95,11 @@ async def decide_review(
         )
         db.add(notif)
 
-    log = AuditLog(
-        user_id=current_user.id,
-        action="KYC_REVIEW_DECISION",
-        resource_type="review",
-        resource_id=review_id,
+    await record_audit(
+        db, action="KYC_REVIEW_DECISION", user_id=current_user.id,
+        resource_type="review", resource_id=review_id,
         description=f"Decision: {decision_in.decision.value}",
     )
-    db.add(log)
     await db.commit()
     return {"message": "Decision recorded", "decision": decision_in.decision}
 

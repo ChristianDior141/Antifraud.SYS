@@ -1,6 +1,6 @@
 import os
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
@@ -11,6 +11,7 @@ from app.models.user import User
 from app.models.client import ClientProfile
 from app.models.document import Document, DocumentType, DocumentStatus
 from app.schemas.document import DocumentResponse, DocumentReview
+from app.services.audit_service import log_pii_access
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
 
@@ -80,11 +81,20 @@ async def get_my_documents(
 @router.get("/client/{client_id}", response_model=List[DocumentResponse])
 async def get_client_documents(
     client_id: int,
+    request: Request,
     current_user: User = Depends(require_compliance),
     db: AsyncSession = Depends(get_db),
 ):
     docs = await db.execute(select(Document).where(Document.client_id == client_id))
-    return docs.scalars().all()
+    documents = docs.scalars().all()
+    await log_pii_access(
+        db, user_id=current_user.id, resource_type="client_documents",
+        resource_id=client_id,
+        description=f"Viewed documents of client #{client_id}",
+        ip_address=request.client.host if request.client else None,
+    )
+    await db.commit()
+    return documents
 
 
 @router.put("/{document_id}/review", response_model=DocumentResponse)

@@ -21,6 +21,12 @@ class AuditLog(Base):
     user_agent = Column(String(500), nullable=True)
     status = Column(String(20), default="success")
 
+    # Tamper-evidence: hash chain (ISO 27001 A.12.4.2). Each entry hashes the
+    # previous entry's hash together with its own payload, so any modification
+    # or deletion of a past record breaks the chain.
+    prev_hash = Column(String(64), nullable=True)
+    entry_hash = Column(String(64), nullable=True, index=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="audit_logs")

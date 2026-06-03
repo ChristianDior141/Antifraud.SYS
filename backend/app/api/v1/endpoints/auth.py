@@ -9,7 +9,7 @@ from app.core.security import (
 )
 from app.core.deps import get_current_user
 from app.models.user import User, UserRole
-from app.models.audit import AuditLog
+from app.services.audit_service import record_audit
 from app.schemas.user import (
     UserCreate, UserLogin, TokenResponse, UserResponse, UserUpdate, RefreshRequest,
 )
@@ -43,9 +43,10 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
     db.add(user)
     await db.flush()
 
-    log = AuditLog(user_id=user.id, action="USER_REGISTERED", resource_type="user",
-                   resource_id=user.id, description=f"New user registered: {user.email}")
-    db.add(log)
+    await record_audit(
+        db, action="USER_REGISTERED", user_id=user.id, resource_type="user",
+        resource_id=user.id, description=f"New user registered: {user.email}",
+    )
     await db.commit()
     await db.refresh(user)
     return user
@@ -59,12 +60,12 @@ async def login(credentials: UserLogin, request: Request, db: AsyncSession = Dep
 
     # Account lockout: reject while a temporary lock is still active (A.9.4.2).
     if user and user.locked_until and _as_aware(user.locked_until) > _utcnow():
-        db.add(AuditLog(
-            user_id=user.id, action="LOGIN_BLOCKED_LOCKED", resource_type="user",
+        await record_audit(
+            db, action="LOGIN_BLOCKED_LOCKED", user_id=user.id, resource_type="user",
             resource_id=user.id, description="Login attempt while account locked",
             ip_address=client_ip, user_agent=request.headers.get("user-agent"),
             status="blocked",
-        ))
+        )
         await db.commit()
         raise HTTPException(
             status_code=status.HTTP_423_LOCKED,
@@ -80,12 +81,12 @@ async def login(credentials: UserLogin, request: Request, db: AsyncSession = Dep
                 user.login_attempts = 0
                 log_action = "ACCOUNT_LOCKED"
             db.add(user)
-            db.add(AuditLog(
-                user_id=user.id, action=log_action, resource_type="user",
+            await record_audit(
+                db, action=log_action, user_id=user.id, resource_type="user",
                 resource_id=user.id, description="Failed login attempt",
                 ip_address=client_ip, user_agent=request.headers.get("user-agent"),
                 status="failure",
-            ))
+            )
             await db.commit()
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
@@ -97,16 +98,11 @@ async def login(credentials: UserLogin, request: Request, db: AsyncSession = Dep
     user.last_login = _utcnow()
     db.add(user)
 
-    log = AuditLog(
-        user_id=user.id,
-        action="USER_LOGIN",
-        resource_type="user",
-        resource_id=user.id,
-        description="User logged in",
-        ip_address=request.client.host if request.client else None,
-        user_agent=request.headers.get("user-agent"),
+    await record_audit(
+        db, action="USER_LOGIN", user_id=user.id, resource_type="user",
+        resource_id=user.id, description="User logged in",
+        ip_address=client_ip, user_agent=request.headers.get("user-agent"),
     )
-    db.add(log)
     await db.commit()
     await db.refresh(user)
 

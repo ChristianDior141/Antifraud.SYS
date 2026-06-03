@@ -7,7 +7,7 @@ import type { RootState } from '@/store';
 import {
   LayoutDashboard, Users, FileText, AlertTriangle,
   BarChart3, Settings, LogOut, Shield, CreditCard, ClipboardCheck,
-  Ticket, Sliders, Activity,
+  Ticket, Sliders, Activity, Lock,
 } from 'lucide-react';
 
 const navItems = {
@@ -17,6 +17,7 @@ const navItems = {
     { to: '/kyc', label: 'KYC Form', icon: FileText },
     { to: '/documents', label: 'Documents', icon: ClipboardCheck },
     { to: '/transactions', label: 'Transactions', icon: CreditCard },
+    { to: '/privacy', label: 'Privacy & My Data', icon: Lock },
   ],
   compliance_officer: [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -45,6 +46,7 @@ const navItems = {
     { to: '/rules', label: 'Rule Tuning', icon: Sliders },
     { to: '/analytics', label: 'Analytics', icon: BarChart3 },
     { to: '/incident-analytics', label: 'Incident Analytics', icon: Activity },
+    { to: '/privacy-admin', label: 'GDPR / Privacy', icon: Lock },
     { to: '/admin', label: 'Admin Panel', icon: Settings },
   ],
 };

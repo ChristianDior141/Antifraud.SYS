@@ -115,6 +115,22 @@ export const detectionRulesApi = {
     api.post(`/detection-rules/${id}/tune`, data),
 };
 
+// Privacy & GDPR
+export const privacyApi = {
+  exportMyData: () => api.get('/privacy/my-data/export'),
+  listConsents: () => api.get('/privacy/consents'),
+  upsertConsent: (data: { purpose: string; granted: boolean; policy_version?: string }) =>
+    api.post('/privacy/consents', data),
+  createRequest: (data: { request_type: string; details?: string }) =>
+    api.post('/privacy/requests', data),
+  myRequests: () => api.get('/privacy/requests'),
+  allRequests: () => api.get('/privacy/requests/all'),
+  processRequest: (id: number, data: { status: string; resolution_notes?: string }) =>
+    api.post(`/privacy/requests/${id}/process`, data),
+  runRetentionPurge: () => api.post('/privacy/retention/purge'),
+  auditIntegrity: () => api.get('/privacy/audit/integrity'),
+};
+
 // Admin
 export const adminApi = {
   listUsers: (params?: object) => api.get('/admin/users', { params }),

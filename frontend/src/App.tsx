@@ -23,6 +23,8 @@ import IncidentsPage from './pages/incidents/IncidentsPage';
 import IncidentDetailPage from './pages/incidents/IncidentDetailPage';
 import RuleTuningPage from './pages/rules/RuleTuningPage';
 import IncidentDashboardPage from './pages/analytics/IncidentDashboardPage';
+import PrivacyPage from './pages/privacy/PrivacyPage';
+import PrivacyAdminPage from './pages/privacy/PrivacyAdminPage';
 
 function AppRoutes() {
   const dispatch = useDispatch<AppDispatch>();
@@ -45,6 +47,9 @@ function AppRoutes() {
         {/* Client routes */}
         <Route path="kyc" element={<ProtectedRoute allowedRoles={['client']}><KYCFormPage /></ProtectedRoute>} />
         <Route path="documents" element={<ProtectedRoute allowedRoles={['client']}><DocumentsPage /></ProtectedRoute>} />
+
+        {/* Privacy — available to any authenticated user (self-service) */}
+        <Route path="privacy" element={<PrivacyPage />} />
 
         {/* Staff routes */}
         <Route path="clients" element={
@@ -94,6 +99,11 @@ function AppRoutes() {
         <Route path="admin" element={
           <ProtectedRoute allowedRoles={['admin']}>
             <AdminPage />
+          </ProtectedRoute>
+        } />
+        <Route path="privacy-admin" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <PrivacyAdminPage />
           </ProtectedRoute>
         } />
       </Route>

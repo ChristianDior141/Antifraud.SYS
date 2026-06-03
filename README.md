@@ -117,6 +117,14 @@ kyc-aml-platform/
 - Comprehensive audit trail
 - System statistics
 
+### Privacy & GDPR Compliance
+- Data-subject self-service: export personal data (Art.15/20), manage consents
+  (Art.7), submit access/rectification/erasure/restriction requests (Art.16–18)
+- Admin/DPO console: process DSARs (erasure → anonymization, with AML legal hold),
+  run retention purge (Art.5(1)(e)), verify audit-log integrity
+- Tamper-evident audit log (SHA-256 hash chain) and logging of staff access to PII
+- See `docs/SECURITY_COMPLIANCE_AUDIT.md` for the full GDPR / ISO 27001 audit and roadmap
+
 ### Incident Management & False Positive Analysis
 - Every AML alert auto-creates an incident ticket (lifecycle: New → Assigned →
   In Progress → Under Review → Escalated → Closed)

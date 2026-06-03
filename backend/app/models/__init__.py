@@ -12,3 +12,6 @@ from app.models.incident import (
     IncidentTicket, IncidentComment, IncidentAssignment, RiskAssessment, FalsePositive,
     TicketStatus, TicketPriority, IncidentClassification, FalsePositiveReason,
 )
+from app.models.privacy import (
+    DataSubjectRequest, Consent, DSARType, DSARStatus,
+)
