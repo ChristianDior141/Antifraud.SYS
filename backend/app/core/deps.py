@@ -15,7 +15,7 @@ async def get_current_user(
     db: AsyncSession = Depends(get_db),
 ) -> User:
     token = credentials.credentials
-    user_id = verify_token(token)
+    user_id = verify_token(token, expected_type="access")
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

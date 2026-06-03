@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import (
     verify_password, get_password_hash, create_access_token, create_refresh_token, verify_token
@@ -9,7 +10,20 @@ from app.core.security import (
 from app.core.deps import get_current_user
 from app.models.user import User, UserRole
 from app.models.audit import AuditLog
-from app.schemas.user import UserCreate, UserLogin, TokenResponse, UserResponse, UserUpdate
+from app.schemas.user import (
+    UserCreate, UserLogin, TokenResponse, UserResponse, UserUpdate, RefreshRequest,
+)
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _as_aware(dt: datetime) -> datetime:
+    """Normalise a possibly-naive datetime (e.g. from SQLite) to UTC-aware."""
+    if dt is not None and dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -41,11 +55,37 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
 async def login(credentials: UserLogin, request: Request, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == credentials.email))
     user = result.scalar_one_or_none()
+    client_ip = request.client.host if request.client else None
+
+    # Account lockout: reject while a temporary lock is still active (A.9.4.2).
+    if user and user.locked_until and _as_aware(user.locked_until) > _utcnow():
+        db.add(AuditLog(
+            user_id=user.id, action="LOGIN_BLOCKED_LOCKED", resource_type="user",
+            resource_id=user.id, description="Login attempt while account locked",
+            ip_address=client_ip, user_agent=request.headers.get("user-agent"),
+            status="blocked",
+        ))
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_423_LOCKED,
+            detail="Account temporarily locked due to repeated failed logins. Try again later.",
+        )
 
     if not user or not verify_password(credentials.password, user.hashed_password):
         if user:
             user.login_attempts = (user.login_attempts or 0) + 1
+            log_action = "USER_LOGIN_FAILED"
+            if user.login_attempts >= settings.MAX_LOGIN_ATTEMPTS:
+                user.locked_until = _utcnow() + timedelta(minutes=settings.ACCOUNT_LOCKOUT_MINUTES)
+                user.login_attempts = 0
+                log_action = "ACCOUNT_LOCKED"
             db.add(user)
+            db.add(AuditLog(
+                user_id=user.id, action=log_action, resource_type="user",
+                resource_id=user.id, description="Failed login attempt",
+                ip_address=client_ip, user_agent=request.headers.get("user-agent"),
+                status="failure",
+            ))
             await db.commit()
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
@@ -53,7 +93,8 @@ async def login(credentials: UserLogin, request: Request, db: AsyncSession = Dep
         raise HTTPException(status_code=400, detail="Account is disabled")
 
     user.login_attempts = 0
-    user.last_login = datetime.utcnow()
+    user.locked_until = None
+    user.last_login = _utcnow()
     db.add(user)
 
     log = AuditLog(
@@ -77,8 +118,10 @@ async def login(credentials: UserLogin, request: Request, db: AsyncSession = Dep
 
 
 @router.post("/refresh")
-async def refresh_token(refresh_token: str, db: AsyncSession = Depends(get_db)):
-    user_id = verify_token(refresh_token)
+async def refresh_token(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
+    # Token is taken from the request body (never the URL/query string, which
+    # would leak into logs and browser history). Must be a refresh-type token.
+    user_id = verify_token(body.refresh_token, expected_type="refresh")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
     result = await db.execute(select(User).where(User.id == int(user_id)))

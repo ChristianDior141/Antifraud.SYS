@@ -21,9 +21,17 @@ def create_refresh_token(subject: Union[str, Any]) -> str:
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-def verify_token(token: str) -> Optional[str]:
+def verify_token(token: str, expected_type: Optional[str] = None) -> Optional[str]:
+    """Decode a JWT and return its subject.
+
+    When ``expected_type`` is given (e.g. "access" or "refresh") the token's
+    ``type`` claim must match — this prevents a refresh token from being used
+    as an access token and vice-versa (OWASP ASVS V3.5).
+    """
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if expected_type is not None and payload.get("type") != expected_type:
+            return None
         return payload.get("sub")
     except JWTError:
         return None

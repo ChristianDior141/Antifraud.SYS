@@ -45,12 +45,16 @@ AML compliance checks, and client risk scoring for financial institutions.
     lifespan=lifespan,
 )
 
+# Host header validation (A.13.1) — skipped when ALLOWED_HOSTS is the "*" default.
+if settings.ALLOWED_HOSTS != ["*"]:
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.ALLOWED_HOSTS)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 
@@ -59,6 +63,15 @@ async def add_process_time_header(request: Request, call_next):
     start = time.time()
     response = await call_next(request)
     response.headers["X-Process-Time"] = str(round(time.time() - start, 4))
+
+    # --- Security headers (OWASP Secure Headers / ISO 27001 A.13.1) ---
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; frame-ancestors 'none'"
+    if settings.ENABLE_HSTS:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
 
