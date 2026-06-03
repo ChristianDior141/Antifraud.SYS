@@ -33,7 +33,7 @@ CREATE TABLE users (
     is_active           BOOLEAN DEFAULT TRUE,
     is_verified         BOOLEAN DEFAULT FALSE,
     mfa_enabled         BOOLEAN DEFAULT FALSE,
-    mfa_secret          VARCHAR(255),
+    mfa_secret          TEXT,                 -- encrypted at rest (Fernet)
     last_login          TIMESTAMPTZ,
     login_attempts      INTEGER DEFAULT 0,
     locked_until        TIMESTAMPTZ,
@@ -59,7 +59,7 @@ CREATE TABLE client_profiles (
     country_of_birth                        VARCHAR(100),
     country_of_residence                    VARCHAR(100),
     -- Contact
-    phone_number                            VARCHAR(50),
+    phone_number                            TEXT,  -- encrypted at rest (Fernet)
     address_line1                           VARCHAR(255),
     address_line2                           VARCHAR(255),
     city                                    VARCHAR(100),
@@ -68,20 +68,20 @@ CREATE TABLE client_profiles (
     country                                 VARCHAR(100),
     -- Identity
     id_type                                 VARCHAR(50),
-    id_number                               VARCHAR(100),
+    id_number                               TEXT,  -- encrypted at rest (Fernet)
     id_expiry_date                          DATE,
     id_issuing_country                      VARCHAR(100),
     -- Financial
     occupation                              VARCHAR(255),
     employer_name                           VARCHAR(255),
     annual_income_range                     VARCHAR(50),
-    source_of_funds                         VARCHAR(255),
-    source_of_wealth                        VARCHAR(255),
+    source_of_funds                         TEXT,  -- encrypted at rest (Fernet)
+    source_of_wealth                        TEXT,  -- encrypted at rest (Fernet)
     expected_monthly_transaction_volume     FLOAT,
     expected_transaction_types              JSONB,
     -- AML Flags
     is_pep                                  BOOLEAN DEFAULT FALSE,
-    pep_details                             TEXT,
+    pep_details                             TEXT,  -- encrypted at rest (Fernet)
     is_sanctioned                           BOOLEAN DEFAULT FALSE,
     is_high_risk_country                    BOOLEAN DEFAULT FALSE,
     -- Status

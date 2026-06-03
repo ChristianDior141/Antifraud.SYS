@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
 
     SECRET_KEY: str = secrets.token_urlsafe(32)
+    # Separate key for field/file encryption at rest. Falls back to SECRET_KEY
+    # in development; must be set explicitly in production.
+    ENCRYPTION_KEY: Optional[str] = None
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 8  # 8 hours
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     ALGORITHM: str = "HS256"
@@ -80,6 +83,8 @@ class Settings(BaseSettings):
                 problems.append("FIRST_SUPERUSER_PASSWORD must be changed")
             if self.ALLOWED_HOSTS == ["*"]:
                 problems.append("ALLOWED_HOSTS must be an explicit allow-list")
+            if not os.getenv("ENCRYPTION_KEY"):
+                problems.append("ENCRYPTION_KEY must be provided via environment")
             if problems:
                 raise ValueError(
                     "Insecure production configuration: " + "; ".join(problems)

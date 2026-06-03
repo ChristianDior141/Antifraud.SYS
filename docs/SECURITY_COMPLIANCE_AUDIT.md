@@ -20,12 +20,12 @@
 | 4 | Нет проверки типа JWT (access/refresh) | Средний | ASVS V3.5 | ✅ Исправлено (Stage 1) |
 | 5 | Нет security-заголовков и Trusted Host | Средний | A.13.1 / OWASP Headers | ✅ Исправлено (Stage 1) |
 | 6 | Слабая парольная политика | Средний | A.9.4.3 / ASVS V2.1 | ✅ Исправлено (Stage 1) |
-| 7 | PII хранится без шифрования | Высокий | GDPR Art.32 / A.10.1 | ⏳ Stage 3 |
+| 7 | PII хранится без шифрования | Высокий | GDPR Art.32 / A.10.1 | ✅ Исправлено (Stage 3) |
 | 8 | Нет прав субъекта данных (DSAR) | Высокий | GDPR Art.15–20 | ✅ Исправлено (Stage 2) |
 | 9 | Учёт согласий без версии/времени/отзыва | Средний | GDPR Art.7 | ✅ Исправлено (Stage 2) |
 | 10 | Нет политики хранения/ретеншена | Средний | GDPR Art.5(1)(e) | ✅ Исправлено (Stage 2) |
 | 11 | Нет аудита просмотра PII | Высокий | GDPR Art.30 / A.12.4 | ✅ Исправлено (Stage 2) |
-| 12 | Документы клиентов не шифруются на диске | Высокий | GDPR Art.32 | ⏳ Stage 3 |
+| 12 | Документы клиентов не шифруются на диске | Высокий | GDPR Art.32 | ✅ Исправлено (Stage 3) |
 | 13 | MFA-поля есть, логики нет | Средний | A.9.4 / ASVS V2.8 | ⏳ Stage 4 |
 | 14 | Логи аудита изменяемы | Средний | A.12.4.2 | ✅ Исправлено (Stage 2) |
 | 15 | Нет управления уязвимостями / CI security | Средний | A.12.6 / NIST PR.IP | ⏳ Stage 5 |
@@ -383,8 +383,11 @@ CREATE TABLE security_events (
 - Реализация: модели `DataSubjectRequest`/`Consent`, сервисы `privacy_service`/`audit_service`, эндпоинты `/privacy/*`, фронт-страницы `PrivacyPage` (self-service) и `PrivacyAdminPage` (DSAR/ретеншен/целостность).
 - Приоритет: High • Сложность: средняя • Эффект: соответствие GDPR, подотчётность.
 
-### Этап 3 — ISO 27001 (техническая защита)
-- Field-level encryption PII, шифрование файлов + защищённая выдача (pre-signed URL, антивирус), маскирование в ответах.
+### Этап 3 — ISO 27001 (техническая защита) ✅ (выполнено)
+- Field-level encryption PII (Fernet/AES) для `id_number`, `phone_number`, `source_of_funds`, `source_of_wealth`, `pep_details`, `mfa_secret` через прозрачный тип `EncryptedString`.
+- Шифрование файлов документов at-rest + защищённая выдача `GET /documents/{id}/download` (контроль доступа владелец/комплаенс + лог `PII_VIEWED`).
+- Ключ `ENCRYPTION_KEY` (с fallback на `SECRET_KEY` в dev; обязателен в production).
+- Осталось на будущее: маскирование PII в ответах API, KMS/envelope encryption, антивирус-скан (ClamAV), pre-signed URL объектного хранилища.
 - Приоритет: High • Сложность: средне-высокая • Эффект: защита данных at-rest, A.10/A.8.
 
 ### Этап 4 — Enterprise Security

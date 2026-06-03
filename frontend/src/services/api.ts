@@ -53,6 +53,7 @@ export const documentsApi = {
   getMyDocuments: () => api.get('/documents/my'),
   getClientDocuments: (clientId: number) => api.get(`/documents/client/${clientId}`),
   reviewDocument: (id: number, data: object) => api.put(`/documents/${id}/review`, data),
+  download: (id: number) => api.get(`/documents/${id}/download`, { responseType: 'blob' }),
 };
 
 // Transactions

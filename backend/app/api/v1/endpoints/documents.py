@@ -1,13 +1,15 @@
 import os
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_compliance
 from app.core.config import settings
-from app.models.user import User
+from app.core.crypto import encrypt_bytes, decrypt_bytes
+from app.models.user import User, UserRole
 from app.models.client import ClientProfile
 from app.models.document import Document, DocumentType, DocumentStatus
 from app.schemas.document import DocumentResponse, DocumentReview
@@ -41,10 +43,11 @@ async def upload_document(
         raise HTTPException(status_code=400, detail=f"File too large (max {settings.MAX_FILE_SIZE_MB}MB)")
 
     ext = file.filename.rsplit(".", 1)[-1] if "." in file.filename else "bin"
-    stored_name = f"{uuid.uuid4()}.{ext}"
+    stored_name = f"{uuid.uuid4()}.{ext}.enc"
     file_path = os.path.join(UPLOAD_DIR, stored_name)
+    # Encrypt the file contents at rest (GDPR Art.32).
     with open(file_path, "wb") as f:
-        f.write(content)
+        f.write(encrypt_bytes(content))
 
     doc = Document(
         client_id=profile.id,
@@ -95,6 +98,51 @@ async def get_client_documents(
     )
     await db.commit()
     return documents
+
+
+@router.get("/{document_id}/download")
+async def download_document(
+    document_id: int,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Stream a decrypted document. Allowed for the owning client or compliance/admin staff."""
+    doc = (
+        await db.execute(select(Document).where(Document.id == document_id))
+    ).scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    profile = (
+        await db.execute(select(ClientProfile).where(ClientProfile.id == doc.client_id))
+    ).scalar_one_or_none()
+
+    is_owner = profile is not None and profile.user_id == current_user.id
+    is_staff = current_user.role in (UserRole.COMPLIANCE_OFFICER, UserRole.ADMIN)
+    if not (is_owner or is_staff):
+        raise HTTPException(status_code=403, detail="Not authorized to access this document")
+
+    if not os.path.exists(doc.file_path):
+        raise HTTPException(status_code=404, detail="File missing from storage")
+
+    with open(doc.file_path, "rb") as f:
+        plaintext = decrypt_bytes(f.read())
+
+    # Record staff access to a client's personal document.
+    if is_staff and not is_owner:
+        await log_pii_access(
+            db, user_id=current_user.id, resource_type="document", resource_id=doc.id,
+            description=f"Downloaded document #{doc.id} of client #{doc.client_id}",
+            ip_address=request.client.host if request.client else None,
+        )
+        await db.commit()
+
+    return Response(
+        content=plaintext,
+        media_type=doc.mime_type or "application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{doc.original_filename}"'},
+    )
 
 
 @router.put("/{document_id}/review", response_model=DocumentResponse)

@@ -6,6 +6,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
 from app.core.database import Base
+from app.core.crypto import EncryptedString
 
 
 class KYCStatus(str, enum.Enum):
@@ -41,7 +42,7 @@ class ClientProfile(Base):
     country_of_residence = Column(String(100), nullable=True)
 
     # Contact Information
-    phone_number = Column(String(50), nullable=True)
+    phone_number = Column(EncryptedString, nullable=True)  # PII — encrypted at rest
     address_line1 = Column(String(255), nullable=True)
     address_line2 = Column(String(255), nullable=True)
     city = Column(String(100), nullable=True)
@@ -51,7 +52,7 @@ class ClientProfile(Base):
 
     # Identity
     id_type = Column(String(50), nullable=True)
-    id_number = Column(String(100), nullable=True)
+    id_number = Column(EncryptedString, nullable=True)  # PII — encrypted at rest
     id_expiry_date = Column(Date, nullable=True)
     id_issuing_country = Column(String(100), nullable=True)
 
@@ -59,14 +60,14 @@ class ClientProfile(Base):
     occupation = Column(String(255), nullable=True)
     employer_name = Column(String(255), nullable=True)
     annual_income_range = Column(String(50), nullable=True)
-    source_of_funds = Column(String(255), nullable=True)
-    source_of_wealth = Column(String(255), nullable=True)
+    source_of_funds = Column(EncryptedString, nullable=True)   # encrypted at rest
+    source_of_wealth = Column(EncryptedString, nullable=True)  # encrypted at rest
     expected_monthly_transaction_volume = Column(Float, nullable=True)
     expected_transaction_types = Column(JSON, nullable=True)
 
     # AML/KYC Flags
     is_pep = Column(Boolean, default=False)
-    pep_details = Column(Text, nullable=True)
+    pep_details = Column(EncryptedString, nullable=True)  # PII — encrypted at rest
     is_sanctioned = Column(Boolean, default=False)
     is_high_risk_country = Column(Boolean, default=False)
 
