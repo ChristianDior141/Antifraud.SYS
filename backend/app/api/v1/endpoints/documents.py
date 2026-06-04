@@ -14,6 +14,7 @@ from app.models.client import ClientProfile
 from app.models.document import Document, DocumentType, DocumentStatus
 from app.schemas.document import DocumentResponse, DocumentReview
 from app.services.audit_service import log_pii_access
+from app.services import monitoring_service as mon
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
 
@@ -23,6 +24,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.post("/upload", response_model=DocumentResponse, status_code=201)
 async def upload_document(
+    request: Request,
     document_type: DocumentType = Form(...),
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
@@ -60,6 +62,13 @@ async def upload_document(
         status=DocumentStatus.PENDING,
     )
     db.add(doc)
+    await db.flush()
+    await mon.upsert_device(db, current_user.id, request)
+    await mon.record_activity(
+        db, user=current_user, action_type="DOCUMENT_UPLOADED",
+        entity_type="document", entity_id=doc.id, request=request,
+        details=f"Uploaded {document_type.value}",
+    )
     await db.commit()
     await db.refresh(doc)
     return doc
@@ -91,10 +100,10 @@ async def get_client_documents(
     docs = await db.execute(select(Document).where(Document.client_id == client_id))
     documents = docs.scalars().all()
     await log_pii_access(
-        db, user_id=current_user.id, resource_type="client_documents",
+        db, user=current_user, resource_type="client_documents",
         resource_id=client_id,
         description=f"Viewed documents of client #{client_id}",
-        ip_address=request.client.host if request.client else None,
+        request=request,
     )
     await db.commit()
     return documents
@@ -132,9 +141,9 @@ async def download_document(
     # Record staff access to a client's personal document.
     if is_staff and not is_owner:
         await log_pii_access(
-            db, user_id=current_user.id, resource_type="document", resource_id=doc.id,
+            db, user=current_user, resource_type="document", resource_id=doc.id,
             description=f"Downloaded document #{doc.id} of client #{doc.client_id}",
-            ip_address=request.client.host if request.client else None,
+            request=request,
         )
         await db.commit()
 

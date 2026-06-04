@@ -78,15 +78,20 @@ async def record_audit(
 
 
 async def log_pii_access(
-    db: AsyncSession, *, user_id: int, resource_type: str, resource_id: int,
-    description: Optional[str] = None, ip_address: Optional[str] = None,
+    db: AsyncSession, *, user, resource_type: str, resource_id: int,
+    description: Optional[str] = None, request=None,
 ) -> AuditLog:
-    """Convenience wrapper to record that a staff member viewed personal data."""
+    """Convenience wrapper to record that a staff member viewed personal data.
+    Captures the actor's username/role and the originating IP/device."""
+    from app.services.monitoring_service import client_ip, device_id_from_request
     return await record_audit(
-        db, action="PII_VIEWED", user_id=user_id, resource_type=resource_type,
+        db, action="PII_VIEWED", user_id=user.id, resource_type=resource_type,
         resource_id=resource_id,
         description=description or f"Viewed {resource_type} #{resource_id}",
-        ip_address=ip_address,
+        ip_address=client_ip(request) if request else None,
+        username=user.email,
+        user_role=user.role.value if user.role else None,
+        device_id=device_id_from_request(request) if request else None,
     )
 
 

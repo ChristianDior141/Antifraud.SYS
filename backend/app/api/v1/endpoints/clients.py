@@ -10,6 +10,7 @@ from app.models.risk import RiskScore
 from app.schemas.client import ClientProfileCreate, ClientProfileUpdate, ClientProfileResponse, ClientListResponse
 from app.services.risk_engine import calculate_risk_score
 from app.services.audit_service import log_pii_access
+from app.services import monitoring_service as mon
 
 router = APIRouter(prefix="/clients", tags=["Clients"])
 
@@ -17,6 +18,7 @@ router = APIRouter(prefix="/clients", tags=["Clients"])
 @router.post("/profile", response_model=ClientProfileResponse, status_code=201)
 async def create_profile(
     profile_in: ClientProfileCreate,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -29,6 +31,11 @@ async def create_profile(
     profile = ClientProfile(user_id=current_user.id, **profile_in.model_dump())
     db.add(profile)
     await db.flush()
+    await mon.upsert_device(db, current_user.id, request)
+    await mon.record_activity(
+        db, user=current_user, action_type="PROFILE_CREATED",
+        entity_type="client_profile", entity_id=profile.id, request=request,
+    )
     await db.commit()
     await db.refresh(profile)
     return profile
@@ -51,6 +58,7 @@ async def get_my_profile(
 @router.put("/profile/me", response_model=ClientProfileResponse)
 async def update_my_profile(
     updates: ClientProfileUpdate,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -64,6 +72,11 @@ async def update_my_profile(
     for field, value in updates.model_dump(exclude_none=True).items():
         setattr(profile, field, value)
     db.add(profile)
+    await mon.upsert_device(db, current_user.id, request)
+    await mon.record_activity(
+        db, user=current_user, action_type="PROFILE_UPDATED",
+        entity_type="client_profile", entity_id=profile.id, request=request,
+    )
     await db.commit()
     await db.refresh(profile)
     return profile
@@ -107,9 +120,8 @@ async def get_client(
         raise HTTPException(status_code=404, detail="Client not found")
     # GDPR Art.30 / ISO A.12.4.1 — record staff access to personal data.
     await log_pii_access(
-        db, user_id=current_user.id, resource_type="client_profile",
-        resource_id=client_id,
-        ip_address=request.client.host if request.client else None,
+        db, user=current_user, resource_type="client_profile",
+        resource_id=client_id, request=request,
     )
     await db.commit()
     return profile

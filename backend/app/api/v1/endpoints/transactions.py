@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import List, Optional
@@ -12,6 +12,7 @@ from app.models.transaction import Transaction, TransactionStatus
 from app.schemas.transaction import TransactionCreate, TransactionResponse
 from app.services.aml_monitor import evaluate_transaction
 from app.services.incident_service import create_ticket_for_alert
+from app.services import monitoring_service as mon
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
@@ -19,6 +20,7 @@ router = APIRouter(prefix="/transactions", tags=["Transactions"])
 @router.post("/", response_model=TransactionResponse, status_code=201)
 async def create_transaction(
     txn_in: TransactionCreate,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -45,6 +47,12 @@ async def create_transaction(
 
     txn.status = TransactionStatus.COMPLETED if not txn.is_flagged else TransactionStatus.FLAGGED
     db.add(txn)
+    await mon.upsert_device(db, current_user.id, request)
+    await mon.record_activity(
+        db, user=current_user, action_type="TRANSACTION_CREATED",
+        entity_type="transaction", entity_id=txn.id, request=request,
+        details=f"{txn.type.value if txn.type else ''} {txn.amount} {txn.currency}",
+    )
     await db.commit()
     await db.refresh(txn)
     return txn
