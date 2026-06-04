@@ -257,8 +257,8 @@ Security Guide (есть основа в `SECURITY_COMPLIANCE_AUDIT.md`), **Disa
 ---
 
 ## 14. Приоритетные «реализуемо сейчас» улучшения (можно внедрить в текущий монолит)
-1. **Alembic-миграции** (заменить `create_all`).
-2. **Rate-limit в Redis** (slowapi storage) — снимает SPOF для multi-instance.
+1. **Alembic-миграции** (заменить `create_all`). ✅ Scaffolding готов (`backend/alembic.ini`, `backend/migrations/`); см. `backend/migrations/README.md` для генерации baseline.
+2. **Rate-limit в Redis** (slowapi storage) — снимает SPOF для multi-instance. ✅ Реализовано (`RATE_LIMIT_STORAGE_URI`, в Docker → `redis://redis:6379`).
 3. **Документы в S3/MinIO** (вместо локального диска) + pre-signed URL.
 4. **Celery + Redis** для фоновых задач (скоринг/скрининг/экспорт/вебхуки).
 5. **PgBouncer + индексы + keyset-пагинация**.
