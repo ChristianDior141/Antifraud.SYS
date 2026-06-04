@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, Enum, DateTime, Text
+from sqlalchemy import Column, Integer, String, Boolean, Enum, DateTime, Text, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -25,6 +25,7 @@ class User(Base):
     is_verified = Column(Boolean, default=False)
     mfa_enabled = Column(Boolean, default=False)
     mfa_secret = Column(EncryptedString, nullable=True)  # encrypted at rest
+    mfa_backup_codes = Column(JSON, nullable=True)        # list of hashed backup codes
     last_login = Column(DateTime(timezone=True), nullable=True)
     login_attempts = Column(Integer, default=0)
     locked_until = Column(DateTime(timezone=True), nullable=True)

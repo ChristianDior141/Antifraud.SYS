@@ -38,6 +38,16 @@ async def _get_ticket(ticket_id: int, db: AsyncSession) -> IncidentTicket:
     return ticket
 
 
+def _ensure_can_act(user: User, ticket: IncidentTicket) -> None:
+    """ABAC: a risk analyst may only act on tickets assigned to them (or unassigned).
+    Compliance officers and admins are not restricted (segregation of duties)."""
+    if user.role == UserRole.RISK_ANALYST and ticket.assigned_analyst_id not in (None, user.id):
+        raise HTTPException(
+            status_code=403,
+            detail="This ticket is assigned to another analyst",
+        )
+
+
 @router.get("/", response_model=List[IncidentTicketResponse])
 async def list_tickets(
     page: int = Query(1, ge=1),
@@ -118,6 +128,7 @@ async def update_status(
     db: AsyncSession = Depends(get_db),
 ):
     ticket = await _get_ticket(ticket_id, db)
+    _ensure_can_act(current_user, ticket)
     ticket.status = body.status
     if body.resolution_notes is not None:
         ticket.resolution_notes = body.resolution_notes
@@ -140,6 +151,7 @@ async def escalate_ticket(
     db: AsyncSession = Depends(get_db),
 ):
     ticket = await _get_ticket(ticket_id, db)
+    _ensure_can_act(current_user, ticket)
     ticket.status = TicketStatus.ESCALATED
     db.add(ticket)
     await db.commit()
@@ -154,7 +166,8 @@ async def add_comment(
     current_user: User = Depends(require_analyst),
     db: AsyncSession = Depends(get_db),
 ):
-    await _get_ticket(ticket_id, db)
+    ticket = await _get_ticket(ticket_id, db)
+    _ensure_can_act(current_user, ticket)
     comment = IncidentComment(ticket_id=ticket_id, author_id=current_user.id, comment=body.comment)
     db.add(comment)
     await db.commit()
@@ -170,6 +183,7 @@ async def add_risk_assessment(
     db: AsyncSession = Depends(get_db),
 ):
     ticket = await _get_ticket(ticket_id, db)
+    _ensure_can_act(current_user, ticket)
     assessment = RiskAssessment(
         ticket_id=ticket_id, assessor_id=current_user.id, **body.model_dump()
     )
@@ -192,6 +206,7 @@ async def classify_ticket(
     db: AsyncSession = Depends(get_db),
 ):
     ticket = await _get_ticket(ticket_id, db)
+    _ensure_can_act(current_user, ticket)
     ticket.classification = body.classification
     if body.resolution_notes is not None:
         ticket.resolution_notes = body.resolution_notes

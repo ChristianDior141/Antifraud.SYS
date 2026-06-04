@@ -1,18 +1,32 @@
+import hashlib
+import secrets as _secrets
+import pyotp
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime, timedelta, timezone
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.rate_limit import limiter
 from app.core.security import (
-    verify_password, get_password_hash, create_access_token, create_refresh_token, verify_token
+    verify_password, get_password_hash, create_access_token, create_refresh_token,
+    verify_token, decode_token,
 )
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, security
 from app.models.user import User, UserRole
+from app.models.auth_tokens import RevokedToken, PasswordResetToken
 from app.services.audit_service import record_audit
 from app.schemas.user import (
     UserCreate, UserLogin, TokenResponse, UserResponse, UserUpdate, RefreshRequest,
+    MFAVerify, PasswordReset, PasswordResetConfirm,
 )
+
+MFA_ISSUER = "Antifraud.SYS"
+
+
+def _gen_backup_codes(n: int = 8) -> list:
+    return [_secrets.token_hex(4) for _ in range(n)]
 
 
 def _utcnow() -> datetime:
@@ -53,6 +67,7 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse)
+@limiter.limit("10/minute")
 async def login(credentials: UserLogin, request: Request, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == credentials.email))
     user = result.scalar_one_or_none()
@@ -92,6 +107,28 @@ async def login(credentials: UserLogin, request: Request, db: AsyncSession = Dep
 
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Account is disabled")
+
+    # Second factor (TOTP or a one-time backup code) when MFA is enabled.
+    if user.mfa_enabled and user.mfa_secret:
+        code = (credentials.mfa_code or "").strip()
+        if not code:
+            raise HTTPException(status_code=401, detail="MFA code required")
+        ok = pyotp.TOTP(user.mfa_secret).verify(code, valid_window=1)
+        if not ok:
+            remaining = list(user.mfa_backup_codes or [])
+            used = next((h for h in remaining if verify_password(code, h)), None)
+            if used:
+                remaining.remove(used)
+                user.mfa_backup_codes = remaining
+                ok = True
+        if not ok:
+            await record_audit(
+                db, action="MFA_FAILED", user_id=user.id, resource_type="user",
+                resource_id=user.id, description="Invalid MFA code", ip_address=client_ip,
+                status="failure",
+            )
+            await db.commit()
+            raise HTTPException(status_code=401, detail="Invalid MFA code")
 
     user.login_attempts = 0
     user.locked_until = None
@@ -149,3 +186,150 @@ async def update_me(
     await db.commit()
     await db.refresh(current_user)
     return current_user
+
+
+@router.post("/logout")
+async def logout(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Revoke the presented access token so it can no longer be used."""
+    payload = decode_token(credentials.credentials)
+    if payload and payload.get("jti"):
+        exp = payload.get("exp")
+        expires_at = datetime.fromtimestamp(exp, tz=timezone.utc) if exp else _utcnow()
+        db.add(RevokedToken(jti=payload["jti"], user_id=current_user.id, expires_at=expires_at))
+        await record_audit(
+            db, action="USER_LOGOUT", user_id=current_user.id, resource_type="user",
+            resource_id=current_user.id, description="User logged out",
+        )
+        await db.commit()
+    return {"message": "Logged out"}
+
+
+# --------------------------------------------------------------------------
+# Multi-factor authentication (TOTP)
+# --------------------------------------------------------------------------
+@router.post("/mfa/setup")
+async def mfa_setup(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate a TOTP secret and provisioning URI. MFA is not active until verified."""
+    secret = pyotp.random_base32()
+    current_user.mfa_secret = secret
+    current_user.mfa_enabled = False
+    db.add(current_user)
+    await db.commit()
+    uri = pyotp.TOTP(secret).provisioning_uri(name=current_user.email, issuer_name=MFA_ISSUER)
+    return {"secret": secret, "otpauth_uri": uri}
+
+
+@router.post("/mfa/verify")
+async def mfa_verify(
+    body: MFAVerify,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Confirm the first TOTP code, activate MFA, and issue one-time backup codes."""
+    if not current_user.mfa_secret:
+        raise HTTPException(status_code=400, detail="Run MFA setup first")
+    if not pyotp.TOTP(current_user.mfa_secret).verify(body.code, valid_window=1):
+        raise HTTPException(status_code=400, detail="Invalid code")
+
+    plain_codes = _gen_backup_codes()
+    current_user.mfa_enabled = True
+    current_user.mfa_backup_codes = [get_password_hash(c) for c in plain_codes]
+    db.add(current_user)
+    await record_audit(
+        db, action="MFA_ENABLED", user_id=current_user.id, resource_type="user",
+        resource_id=current_user.id, description="MFA enabled",
+    )
+    await db.commit()
+    # Backup codes are shown only once.
+    return {"enabled": True, "backup_codes": plain_codes}
+
+
+@router.post("/mfa/disable")
+async def mfa_disable(
+    body: MFAVerify,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Disable MFA (requires a valid current TOTP code)."""
+    if current_user.mfa_enabled and current_user.mfa_secret:
+        if not pyotp.TOTP(current_user.mfa_secret).verify(body.code, valid_window=1):
+            raise HTTPException(status_code=400, detail="Invalid code")
+    current_user.mfa_enabled = False
+    current_user.mfa_secret = None
+    current_user.mfa_backup_codes = None
+    db.add(current_user)
+    await record_audit(
+        db, action="MFA_DISABLED", user_id=current_user.id, resource_type="user",
+        resource_id=current_user.id, description="MFA disabled",
+    )
+    await db.commit()
+    return {"enabled": False}
+
+
+# --------------------------------------------------------------------------
+# Password reset
+# --------------------------------------------------------------------------
+@router.post("/password-reset/request")
+@limiter.limit("5/minute")
+async def password_reset_request(
+    body: PasswordReset, request: Request, db: AsyncSession = Depends(get_db),
+):
+    """Issue a single-use reset token. Does not reveal whether the email exists."""
+    user = (
+        await db.execute(select(User).where(User.email == body.email))
+    ).scalar_one_or_none()
+    token_plain = _secrets.token_urlsafe(32)
+    if user:
+        db.add(PasswordResetToken(
+            user_id=user.id,
+            token_hash=hashlib.sha256(token_plain.encode()).hexdigest(),
+            expires_at=_utcnow() + timedelta(hours=1),
+        ))
+        await record_audit(
+            db, action="PASSWORD_RESET_REQUESTED", user_id=user.id, resource_type="user",
+            resource_id=user.id, description="Password reset requested",
+            ip_address=request.client.host if request.client else None,
+        )
+        await db.commit()
+
+    resp = {"message": "If that email exists, a reset link has been sent"}
+    # In non-production, surface the token so the flow can be exercised without email.
+    if user and settings.ENVIRONMENT.lower() != "production":
+        resp["debug_token"] = token_plain
+    return resp
+
+
+@router.post("/password-reset/confirm")
+async def password_reset_confirm(
+    body: PasswordResetConfirm, db: AsyncSession = Depends(get_db),
+):
+    token_hash = hashlib.sha256(body.token.encode()).hexdigest()
+    prt = (
+        await db.execute(select(PasswordResetToken).where(PasswordResetToken.token_hash == token_hash))
+    ).scalar_one_or_none()
+    if not prt or prt.used_at is not None or _as_aware(prt.expires_at) < _utcnow():
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+
+    user = (await db.execute(select(User).where(User.id == prt.user_id))).scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+
+    user.hashed_password = get_password_hash(body.new_password)
+    user.login_attempts = 0
+    user.locked_until = None
+    prt.used_at = _utcnow()
+    db.add(user)
+    db.add(prt)
+    await record_audit(
+        db, action="PASSWORD_RESET_COMPLETED", user_id=user.id, resource_type="user",
+        resource_id=user.id, description="Password reset completed",
+    )
+    await db.commit()
+    return {"message": "Password updated"}

@@ -117,6 +117,13 @@ kyc-aml-platform/
 - Comprehensive audit trail
 - System statistics
 
+### Account Security (Enterprise)
+- Multi-factor authentication (TOTP) with one-time backup codes
+- Account lockout after repeated failed logins; rate limiting on auth endpoints
+- JWT revocation / real logout (token denylist) and self-service password reset
+- PII encrypted at rest (Fernet) and encrypted document storage with access-controlled download
+- See `docs/SECURITY_COMPLIANCE_AUDIT.md` for the full controls list
+
 ### Privacy & GDPR Compliance
 - Data-subject self-service: export personal data (Art.15/20), manage consents
   (Art.7), submit access/rectification/erasure/restriction requests (Art.16–18)

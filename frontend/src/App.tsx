@@ -25,6 +25,7 @@ import RuleTuningPage from './pages/rules/RuleTuningPage';
 import IncidentDashboardPage from './pages/analytics/IncidentDashboardPage';
 import PrivacyPage from './pages/privacy/PrivacyPage';
 import PrivacyAdminPage from './pages/privacy/PrivacyAdminPage';
+import SecurityPage from './pages/security/SecurityPage';
 
 function AppRoutes() {
   const dispatch = useDispatch<AppDispatch>();
@@ -50,6 +51,8 @@ function AppRoutes() {
 
         {/* Privacy — available to any authenticated user (self-service) */}
         <Route path="privacy" element={<PrivacyPage />} />
+        {/* Account security (MFA) — any authenticated user */}
+        <Route path="security" element={<SecurityPage />} />
 
         {/* Staff routes */}
         <Route path="clients" element={

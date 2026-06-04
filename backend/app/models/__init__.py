@@ -15,3 +15,4 @@ from app.models.incident import (
 from app.models.privacy import (
     DataSubjectRequest, Consent, DSARType, DSARStatus,
 )
+from app.models.auth_tokens import RevokedToken, PasswordResetToken

@@ -3,11 +3,12 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { cn } from '@/utils/cn';
 import { logout } from '@/store/slices/authSlice';
+import { authApi } from '@/services/api';
 import type { RootState } from '@/store';
 import {
   LayoutDashboard, Users, FileText, AlertTriangle,
   BarChart3, Settings, LogOut, Shield, CreditCard, ClipboardCheck,
-  Ticket, Sliders, Activity, Lock,
+  Ticket, Sliders, Activity, Lock, KeyRound,
 } from 'lucide-react';
 
 const navItems = {
@@ -18,6 +19,7 @@ const navItems = {
     { to: '/documents', label: 'Documents', icon: ClipboardCheck },
     { to: '/transactions', label: 'Transactions', icon: CreditCard },
     { to: '/privacy', label: 'Privacy & My Data', icon: Lock },
+    { to: '/security', label: 'Security (2FA)', icon: KeyRound },
   ],
   compliance_officer: [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -28,6 +30,7 @@ const navItems = {
     { to: '/rules', label: 'Rule Tuning', icon: Sliders },
     { to: '/analytics', label: 'Analytics', icon: BarChart3 },
     { to: '/incident-analytics', label: 'Incident Analytics', icon: Activity },
+    { to: '/security', label: 'Security (2FA)', icon: KeyRound },
   ],
   risk_analyst: [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -37,6 +40,7 @@ const navItems = {
     { to: '/rules', label: 'Rule Tuning', icon: Sliders },
     { to: '/analytics', label: 'Analytics', icon: BarChart3 },
     { to: '/incident-analytics', label: 'Incident Analytics', icon: Activity },
+    { to: '/security', label: 'Security (2FA)', icon: KeyRound },
   ],
   admin: [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -47,6 +51,7 @@ const navItems = {
     { to: '/analytics', label: 'Analytics', icon: BarChart3 },
     { to: '/incident-analytics', label: 'Incident Analytics', icon: Activity },
     { to: '/privacy-admin', label: 'GDPR / Privacy', icon: Lock },
+    { to: '/security', label: 'Security (2FA)', icon: KeyRound },
     { to: '/admin', label: 'Admin Panel', icon: Settings },
   ],
 };
@@ -58,7 +63,9 @@ export function Sidebar() {
   const role = user?.role ?? 'client';
   const items = navItems[role as keyof typeof navItems] ?? navItems.client;
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Revoke the token server-side, then clear local state regardless of outcome.
+    try { await authApi.logout(); } catch { /* token may already be invalid */ }
     dispatch(logout());
     navigate('/login');
   };

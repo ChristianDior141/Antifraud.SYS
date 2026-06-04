@@ -26,7 +26,7 @@
 | 10 | Нет политики хранения/ретеншена | Средний | GDPR Art.5(1)(e) | ✅ Исправлено (Stage 2) |
 | 11 | Нет аудита просмотра PII | Высокий | GDPR Art.30 / A.12.4 | ✅ Исправлено (Stage 2) |
 | 12 | Документы клиентов не шифруются на диске | Высокий | GDPR Art.32 | ✅ Исправлено (Stage 3) |
-| 13 | MFA-поля есть, логики нет | Средний | A.9.4 / ASVS V2.8 | ⏳ Stage 4 |
+| 13 | MFA-поля есть, логики нет | Средний | A.9.4 / ASVS V2.8 | ✅ Исправлено (Stage 4) |
 | 14 | Логи аудита изменяемы | Средний | A.12.4.2 | ✅ Исправлено (Stage 2) |
 | 15 | Нет управления уязвимостями / CI security | Средний | A.12.6 / NIST PR.IP | ⏳ Stage 5 |
 | 16 | Нет процессов RoPA / breach notification | Средний | GDPR Art.30/33-34 | ⏳ Stage 5 |
@@ -390,9 +390,15 @@ CREATE TABLE security_events (
 - Осталось на будущее: маскирование PII в ответах API, KMS/envelope encryption, антивирус-скан (ClamAV), pre-signed URL объектного хранилища.
 - Приоритет: High • Сложность: средне-высокая • Эффект: защита данных at-rest, A.10/A.8.
 
-### Этап 4 — Enterprise Security
-- MFA (TOTP) + backup-коды, token revocation/logout, password reset flow, device trust, ABAC + новые роли (Auditor/DPO), security-инциденты + SIEM, rate limiting.
-- Приоритет: Medium-High • Сложность: средняя • Эффект: зрелая модель доступа и реагирования.
+### Этап 4 — Enterprise Security ✅ (в основном выполнено)
+- MFA (TOTP) + одноразовые backup-коды (`/auth/mfa/setup|verify|disable`, проверка в login).
+- Token revocation + logout (`jti` в JWT, таблица `revoked_tokens`, проверка в `get_current_user`).
+- Password reset flow (`/auth/password-reset/request|confirm`, токены хранятся хешированными, без user-enumeration).
+- Rate limiting на `/auth/login` (10/мин) и `/auth/password-reset/request` (5/мин) через `slowapi`.
+- ABAC: аналитик действует только по назначенным ему тикетам (SoD сохранён для compliance/admin).
+- Фронт: страница `SecurityPage` (управление 2FA), ввод кода 2FA на логине, серверный logout.
+- **Отложено (отдельной задачей):** новые роли Auditor/DPO и device trust — чтобы не дестабилизировать ролевую модель и UI.
+- Приоритет: Medium-High • Сложность: средняя • Эффект: зрелая аутентификация и least-privilege.
 
 ### Этап 5 — AI-Powered Fraud Detection & Governance
 - ML fraud scoring (интерпретируемый), graph analytics, adverse media, реальные санкционные фиды; CI security pipeline, Vault/KMS, RoPA и процессы breach notification.

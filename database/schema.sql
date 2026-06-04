@@ -34,6 +34,7 @@ CREATE TABLE users (
     is_verified         BOOLEAN DEFAULT FALSE,
     mfa_enabled         BOOLEAN DEFAULT FALSE,
     mfa_secret          TEXT,                 -- encrypted at rest (Fernet)
+    mfa_backup_codes    JSONB,                -- hashed one-time backup codes
     last_login          TIMESTAMPTZ,
     login_attempts      INTEGER DEFAULT 0,
     locked_until        TIMESTAMPTZ,
@@ -469,3 +470,27 @@ CREATE TABLE consents (
     created_at          TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX idx_consents_user ON consents(user_id);
+
+-- =============================================================
+-- ENTERPRISE SECURITY (Stage 4)
+-- =============================================================
+
+-- JWT revocation denylist (logout / forced sign-out)
+CREATE TABLE revoked_tokens (
+    jti                 VARCHAR(64) PRIMARY KEY,
+    user_id             INTEGER REFERENCES users(id),
+    expires_at          TIMESTAMPTZ,
+    revoked_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Single-use, time-limited password reset tokens (stored hashed)
+CREATE TABLE password_reset_tokens (
+    id                  SERIAL PRIMARY KEY,
+    user_id             INTEGER NOT NULL REFERENCES users(id),
+    token_hash          VARCHAR(255) NOT NULL,
+    expires_at          TIMESTAMPTZ NOT NULL,
+    used_at             TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_prt_user ON password_reset_tokens(user_id);
+CREATE INDEX idx_prt_hash ON password_reset_tokens(token_hash);

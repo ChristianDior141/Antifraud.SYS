@@ -27,12 +27,19 @@ api.interceptors.response.use(
 
 // Auth
 export const authApi = {
-  login: (email: string, password: string) =>
-    api.post('/auth/login', { email, password }),
+  login: (email: string, password: string, mfaCode?: string) =>
+    api.post('/auth/login', { email, password, mfa_code: mfaCode }),
   register: (data: { email: string; password: string; full_name: string; role?: string }) =>
     api.post('/auth/register', data),
   getMe: () => api.get('/auth/me'),
   updateMe: (data: object) => api.put('/auth/me', data),
+  logout: () => api.post('/auth/logout'),
+  mfaSetup: () => api.post('/auth/mfa/setup'),
+  mfaVerify: (code: string) => api.post('/auth/mfa/verify', { code }),
+  mfaDisable: (code: string) => api.post('/auth/mfa/disable', { code }),
+  passwordResetRequest: (email: string) => api.post('/auth/password-reset/request', { email }),
+  passwordResetConfirm: (token: string, newPassword: string) =>
+    api.post('/auth/password-reset/confirm', { token, new_password: newPassword }),
 };
 
 // Clients

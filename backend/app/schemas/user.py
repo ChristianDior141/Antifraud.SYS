@@ -57,6 +57,11 @@ class UserResponse(UserBase):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+    mfa_code: Optional[str] = None  # required when the account has MFA enabled
+
+
+class MFAVerify(BaseModel):
+    code: str
 
 
 class TokenResponse(BaseModel):
