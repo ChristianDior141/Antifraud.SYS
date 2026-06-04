@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     MAX_LOGIN_ATTEMPTS: int = 5          # failed logins before temporary lockout
     ACCOUNT_LOCKOUT_MINUTES: int = 15    # how long the account stays locked
 
+    # Rate-limit storage. "memory://" works for a single instance (and tests);
+    # set to "redis://host:6379" so the limit is shared across instances.
+    RATE_LIMIT_STORAGE_URI: str = "memory://"
+
     # --- HTTP hardening ---
     # Host header allow-list. ["*"] disables the TrustedHost check (dev only).
     ALLOWED_HOSTS: List[str] = ["*"]
