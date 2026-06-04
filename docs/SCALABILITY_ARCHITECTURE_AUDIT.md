@@ -260,7 +260,7 @@ Security Guide (есть основа в `SECURITY_COMPLIANCE_AUDIT.md`), **Disa
 1. **Alembic-миграции** (заменить `create_all`). ✅ Scaffolding готов (`backend/alembic.ini`, `backend/migrations/`); см. `backend/migrations/README.md` для генерации baseline.
 2. **Rate-limit в Redis** (slowapi storage) — снимает SPOF для multi-instance. ✅ Реализовано (`RATE_LIMIT_STORAGE_URI`, в Docker → `redis://redis:6379`).
 3. **Документы в S3/MinIO** (вместо локального диска) + pre-signed URL. ✅ Реализовано: pluggable хранилище (`STORAGE_BACKEND=local|s3`), MinIO в docker-compose, Fernet-шифрование сохранено, выдача потоком через API; `presigned_get()` доступен в S3-бэкенде.
-4. **Celery + Redis** для фоновых задач (скоринг/скрининг/экспорт/вебхуки).
+4. **Celery + Redis** для фоновых задач (скоринг/скрининг/экспорт/вебхуки). ✅ Реализовано: `celery_app` (Redis broker/backend), задачи `recalculate_risk_score`/`send_notification`, worker-сервис в docker-compose, эндпоинты `POST /clients/{id}/risk-score/async` и `GET /tasks/{id}`.
 5. **PgBouncer + индексы + keyset-пагинация**.
 6. **Prometheus-метрики + OpenTelemetry** (FastAPI instrumentation).
 7. **gunicorn-воркеры + K8s-манифесты/Helm-skeleton**.

@@ -143,6 +143,21 @@ async def trigger_risk_assessment(
     return {"client_id": client_id, "risk_score": risk.total_score, "risk_level": risk.risk_level}
 
 
+@router.post("/{client_id}/risk-score/async")
+async def trigger_risk_assessment_async(
+    client_id: int,
+    current_user: User = Depends(require_analyst),
+    db: AsyncSession = Depends(get_db),
+):
+    """Queue risk re-scoring as a background Celery task; returns a task id to poll."""
+    result = await db.execute(select(ClientProfile).where(ClientProfile.id == client_id))
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Client not found")
+    from app.tasks import recalculate_risk_score
+    task = recalculate_risk_score.delay(client_id)
+    return {"task_id": task.id, "status": "queued"}
+
+
 def _serialize_risk(risk: RiskScore) -> dict:
     return {
         "client_id": risk.client_id,
