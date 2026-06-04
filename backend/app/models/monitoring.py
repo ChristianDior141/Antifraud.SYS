@@ -1,7 +1,7 @@
 """Device intelligence, sessions, login/IP history, activity & security events."""
 from sqlalchemy import (
     Column, Integer, String, Boolean, DateTime, Text, ForeignKey, JSON,
-    UniqueConstraint,
+    UniqueConstraint, Index,
 )
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -45,6 +45,7 @@ class UserSession(Base):
 class LoginHistory(Base):
     """Every login attempt (success or failure)."""
     __tablename__ = "login_history"
+    __table_args__ = (Index("ix_login_user_created", "user_id", "created_at"),)
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
@@ -71,6 +72,7 @@ class IPHistory(Base):
 class UserActivityLog(Base):
     """Business-action activity timeline (tickets, risk assessments, FP reviews, …)."""
     __tablename__ = "user_activity_logs"
+    __table_args__ = (Index("ix_activity_user_created", "user_id", "created_at"),)
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), index=True)
@@ -89,6 +91,7 @@ class UserActivityLog(Base):
 class SecurityEvent(Base):
     """Automatically detected security signals."""
     __tablename__ = "security_events"
+    __table_args__ = (Index("ix_secevent_created", "created_at"),)
 
     id = Column(Integer, primary_key=True, index=True)
     event_type = Column(String(100), nullable=False)   # new_device, new_ip, multiple_failed_logins, rapid_ip_change, suspicious_activity

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Enum, DateTime, Text, ForeignKey, Float, JSON, Boolean
+from sqlalchemy import Column, Integer, String, Enum, DateTime, Text, ForeignKey, Float, JSON, Boolean, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -23,6 +23,11 @@ class TransactionStatus(str, enum.Enum):
 
 class Transaction(Base):
     __tablename__ = "transactions"
+    __table_args__ = (
+        # client transaction history ordered by date (most common query)
+        Index("ix_txn_client_date", "client_id", "transaction_date"),
+        Index("ix_txn_flagged", "is_flagged"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     client_id = Column(Integer, ForeignKey("client_profiles.id"), nullable=False)

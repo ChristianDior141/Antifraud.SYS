@@ -19,6 +19,28 @@ services:
       timeout: 5s
       retries: 5
 
+  # Connection pooler (opt-in). To use it, point the backend/worker at it:
+  #   POSTGRES_SERVER=pgbouncer  POSTGRES_PORT=6432
+  # Session pooling keeps asyncpg prepared statements working without changes.
+  pgbouncer:
+    image: edoburu/pgbouncer:1.21.0
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: kyc_aml_db
+      POOL_MODE: session
+      MAX_CLIENT_CONN: "1000"
+      DEFAULT_POOL_SIZE: "25"
+      AUTH_TYPE: scram-sha-256
+    ports:
+      - "6432:6432"
+    depends_on:
+      db:
+        condition: service_healthy
+
   redis:
     image: redis:7-alpine
     restart: unless-stopped

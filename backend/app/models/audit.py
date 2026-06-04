@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, JSON, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, JSON, Boolean, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -6,6 +6,11 @@ from app.core.database import Base
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
+    __table_args__ = (
+        Index("ix_audit_created", "created_at"),
+        Index("ix_audit_action", "action"),
+        Index("ix_audit_user", "user_id"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)

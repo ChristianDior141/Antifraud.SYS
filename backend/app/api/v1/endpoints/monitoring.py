@@ -94,6 +94,7 @@ async def admin_audit(
     date_to: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=500),
+    before_id: Optional[int] = Query(None, description="Keyset cursor: return rows with id < before_id"),
     current_user: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
@@ -113,7 +114,12 @@ async def admin_audit(
         query = query.where(AuditLog.created_at >= df)
     if dt:
         query = query.where(AuditLog.created_at <= dt)
-    query = query.order_by(AuditLog.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    # Keyset pagination (efficient for deep paging) when a cursor is supplied;
+    # otherwise fall back to offset paging for the first pages.
+    if before_id is not None:
+        query = query.where(AuditLog.id < before_id).order_by(AuditLog.id.desc()).limit(page_size)
+    else:
+        query = query.order_by(AuditLog.id.desc()).offset((page - 1) * page_size).limit(page_size)
     rows = (await db.execute(query)).scalars().all()
     return [
         {
