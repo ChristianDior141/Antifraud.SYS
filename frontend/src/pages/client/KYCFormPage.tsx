@@ -99,7 +99,6 @@ export default function KYCFormPage() {
                   { name: 'last_name', label: 'Last Name', required: true },
                   { name: 'middle_name', label: 'Middle Name' },
                   { name: 'date_of_birth', label: 'Date of Birth', type: 'date', required: true },
-                  { name: 'nationality', label: 'Nationality', required: true },
                   { name: 'phone_number', label: 'Phone Number', required: true },
                 ].map(({ name, label, type = 'text', required }) => (
                   <div key={name}>

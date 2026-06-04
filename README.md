@@ -121,6 +121,16 @@ kyc-aml-platform/
 - Comprehensive audit trail
 - System statistics
 
+### User Identity & Device Intelligence
+- Required, unique, validated account phone number (E.164) at registration
+- Device tracking per login (OS/browser/type/screen), trusted devices, device history
+- Session, login history and IP history tracking; new-device / new-IP detection
+- Automatic security events: new device, new IP, multiple failed logins, rapid IP change
+- Tamper-evident audit log enriched with username/role/device id
+- Admin **Audit Dashboard**: full activity/devices/sessions/login/security views with
+  search, filters, date range and export to **CSV / Excel / PDF**
+- Self-service **My Activity** page (own devices, logins, actions) — users cannot see others'
+
 ### Account Security (Enterprise)
 - Multi-factor authentication (TOTP) with one-time backup codes
 - Account lockout after repeated failed logins; rate limiting on auth endpoints

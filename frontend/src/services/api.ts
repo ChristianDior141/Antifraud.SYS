@@ -7,9 +7,23 @@ const api: AxiosInstance = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// Stable per-browser device identifier for device intelligence.
+function getDeviceId(): string {
+  let id = localStorage.getItem('device_id');
+  if (!id) {
+    id = (crypto?.randomUUID?.() ?? `dev-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    localStorage.setItem('device_id', id);
+  }
+  return id;
+}
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  config.headers['X-Device-Id'] = getDeviceId();
+  if (typeof screen !== 'undefined') {
+    config.headers['X-Screen-Resolution'] = `${screen.width}x${screen.height}`;
+  }
   return config;
 });
 
@@ -29,7 +43,7 @@ api.interceptors.response.use(
 export const authApi = {
   login: (email: string, password: string, mfaCode?: string) =>
     api.post('/auth/login', { email, password, mfa_code: mfaCode }),
-  register: (data: { email: string; password: string; full_name: string; role?: string }) =>
+  register: (data: { email: string; password: string; full_name: string; phone_number: string; role?: string }) =>
     api.post('/auth/register', data),
   getMe: () => api.get('/auth/me'),
   updateMe: (data: object) => api.put('/auth/me', data),
@@ -137,6 +151,26 @@ export const privacyApi = {
     api.post(`/privacy/requests/${id}/process`, data),
   runRetentionPurge: () => api.post('/privacy/retention/purge'),
   auditIntegrity: () => api.get('/privacy/audit/integrity'),
+};
+
+// Monitoring & Audit
+export const monitoringApi = {
+  // self-service
+  myDevices: () => api.get('/monitoring/me/devices'),
+  myLoginHistory: () => api.get('/monitoring/me/login-history'),
+  mySessions: () => api.get('/monitoring/me/sessions'),
+  myActivity: () => api.get('/monitoring/me/activity'),
+  trustDevice: (id: number) => api.post(`/monitoring/devices/${id}/trust`),
+  // admin
+  audit: (params?: object) => api.get('/monitoring/audit', { params }),
+  activity: (params?: object) => api.get('/monitoring/activity', { params }),
+  devices: () => api.get('/monitoring/devices'),
+  sessions: (params?: object) => api.get('/monitoring/sessions', { params }),
+  loginHistory: (params?: object) => api.get('/monitoring/login-history', { params }),
+  securityEvents: (params?: object) => api.get('/monitoring/security-events', { params }),
+  userTimeline: (id: number) => api.get(`/monitoring/users/${id}/activity`),
+  exportLogs: (dataset: string, format: string) =>
+    api.get('/monitoring/export', { params: { dataset, format }, responseType: 'blob' }),
 };
 
 // Admin

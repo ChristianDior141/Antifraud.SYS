@@ -103,6 +103,8 @@ async def upsert_device(
     if not did or user_id is None:
         return None, False
     ua = request.headers.get("user-agent", "")
+    if not screen_resolution:
+        screen_resolution = request.headers.get("x-screen-resolution")
     info = parse_user_agent(ua)
 
     existing = (

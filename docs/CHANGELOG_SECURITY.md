@@ -47,6 +47,18 @@
 | Rate limiting | Нет | login 10/мин, сброс пароля 5/мин (slowapi) | `backend/app/core/rate_limit.py`, `main.py` |
 | ABAC | Аналитик мог трогать любой тикет | Только назначенные ему тикеты | `backend/app/api/v1/endpoints/incidents.py` (`_ensure_can_act`) |
 
+## Stage 6 — User Identity & Device Intelligence
+
+| Что | До | После | Где проверить |
+|---|---|---|---|
+| Телефон при регистрации | Не было; была nationality в KYC | Обязательный уникальный телефон (E.164) на аккаунте; nationality убрана из KYC-формы | `RegisterPage`, `backend/app/models/user.py` |
+| Устройства | Не отслеживались | Сбор ОС/браузер/тип/экран, доверенные устройства, история | UI: **My Activity**; таблица `devices` |
+| Сессии / входы / IP | Не велись | `user_sessions`, `login_history`, `ip_history` (успехи и неудачи) | таблицы; UI My Activity / Audit Dashboard |
+| События безопасности | Нет | Авто: new_device, new_ip, multiple_failed_logins, rapid_ip_change | таблица `security_events`; Audit Dashboard → «События ИБ» |
+| Аудит-логи | Базовые | + username, role, device_id; действия по инцидентам | таблица `audit_logs`, `user_activity_logs` |
+| Админ-дашборд аудита | Нет | Поиск, фильтры, диапазон дат, экспорт **CSV/Excel/PDF** | UI: **Audit Dashboard** (только админ) |
+| Доступ к чужой активности | — | Только админ видит всех; пользователь — только себя | `/monitoring/*` (require_admin vs get_current_user) |
+
 ## Stage 5 — Governance / Secure SDLC
 
 | Что | До | После | Где проверить |
@@ -77,5 +89,5 @@
 - `docs/INCIDENT_RESPONSE.md` — реагирование на инциденты и уведомление об утечке
 
 ## Статус по дорожной карте
-Stage 1 ✅ · Stage 2 ✅ · Stage 3 ✅ · Stage 4 ✅ · Stage 5 ✅
+Stage 1 ✅ · Stage 2 ✅ · Stage 3 ✅ · Stage 4 ✅ · Stage 5 ✅ · Stage 6 ✅ (identity & device intelligence)
 Отложено отдельными инициативами: роли Auditor/DPO, device trust, ML-fraud/graph analytics, Vault/KMS, SIEM + `security_events`.

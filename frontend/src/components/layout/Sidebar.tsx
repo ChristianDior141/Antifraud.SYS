@@ -8,7 +8,7 @@ import type { RootState } from '@/store';
 import {
   LayoutDashboard, Users, FileText, AlertTriangle,
   BarChart3, Settings, LogOut, Shield, CreditCard, ClipboardCheck,
-  Ticket, Sliders, Activity, Lock, KeyRound,
+  Ticket, Sliders, Activity, Lock, KeyRound, History, ClipboardList,
 } from 'lucide-react';
 
 const navItems = {
@@ -20,6 +20,7 @@ const navItems = {
     { to: '/transactions', label: 'Transactions', icon: CreditCard },
     { to: '/privacy', label: 'Privacy & My Data', icon: Lock },
     { to: '/security', label: 'Security (2FA)', icon: KeyRound },
+    { to: '/my-activity', label: 'My Activity', icon: History },
   ],
   compliance_officer: [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -31,6 +32,7 @@ const navItems = {
     { to: '/analytics', label: 'Analytics', icon: BarChart3 },
     { to: '/incident-analytics', label: 'Incident Analytics', icon: Activity },
     { to: '/security', label: 'Security (2FA)', icon: KeyRound },
+    { to: '/my-activity', label: 'My Activity', icon: History },
   ],
   risk_analyst: [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -41,6 +43,7 @@ const navItems = {
     { to: '/analytics', label: 'Analytics', icon: BarChart3 },
     { to: '/incident-analytics', label: 'Incident Analytics', icon: Activity },
     { to: '/security', label: 'Security (2FA)', icon: KeyRound },
+    { to: '/my-activity', label: 'My Activity', icon: History },
   ],
   admin: [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -51,7 +54,9 @@ const navItems = {
     { to: '/analytics', label: 'Analytics', icon: BarChart3 },
     { to: '/incident-analytics', label: 'Incident Analytics', icon: Activity },
     { to: '/privacy-admin', label: 'GDPR / Privacy', icon: Lock },
+    { to: '/audit-dashboard', label: 'Audit Dashboard', icon: ClipboardList },
     { to: '/security', label: 'Security (2FA)', icon: KeyRound },
+    { to: '/my-activity', label: 'My Activity', icon: History },
     { to: '/admin', label: 'Admin Panel', icon: Settings },
   ],
 };

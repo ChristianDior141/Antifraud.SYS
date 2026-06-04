@@ -9,9 +9,13 @@ import { Shield, AlertCircle, CheckCircle } from 'lucide-react';
 const schema = z.object({
   full_name: z.string().min(2, 'Full name required'),
   email: z.string().email('Valid email required'),
+  phone_number: z.string()
+    .regex(/^\+[1-9]\d{6,14}$/, 'International format required, e.g. +14155552671'),
   password: z.string().min(8, 'At least 8 characters')
     .regex(/[A-Z]/, 'Must contain uppercase')
-    .regex(/[0-9]/, 'Must contain digit'),
+    .regex(/[a-z]/, 'Must contain lowercase')
+    .regex(/[0-9]/, 'Must contain digit')
+    .regex(/[^A-Za-z0-9]/, 'Must contain a special character'),
   confirm_password: z.string(),
 }).refine(d => d.password === d.confirm_password, {
   message: "Passwords don't match", path: ['confirm_password'],
@@ -32,7 +36,10 @@ export default function RegisterPage() {
     setLoading(true);
     setError('');
     try {
-      await authApi.register({ email: data.email, password: data.password, full_name: data.full_name });
+      await authApi.register({
+        email: data.email, password: data.password,
+        full_name: data.full_name, phone_number: data.phone_number,
+      });
       setSuccess(true);
       setTimeout(() => navigate('/login'), 2000);
     } catch (err: any) {
@@ -74,6 +81,7 @@ export default function RegisterPage() {
             {([
               { name: 'full_name', label: 'Full Name', type: 'text', placeholder: 'John Doe' },
               { name: 'email', label: 'Email', type: 'email', placeholder: 'you@example.com' },
+              { name: 'phone_number', label: 'Phone Number', type: 'tel', placeholder: '+14155552671' },
               { name: 'password', label: 'Password', type: 'password', placeholder: '••••••••' },
               { name: 'confirm_password', label: 'Confirm Password', type: 'password', placeholder: '••••••••' },
             ] as const).map(({ name, label, type, placeholder }) => (
