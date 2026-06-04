@@ -21,7 +21,8 @@ services:
   #   POSTGRES_SERVER=pgbouncer  POSTGRES_PORT=6432
   # Session pooling keeps asyncpg prepared statements working without changes.
   pgbouncer:
-    image: edoburu/pgbouncer:1.21.0
+    image: edoburu/pgbouncer:latest
+    profiles: ["pooler"]   # opt-in: start with `docker-compose --profile pooler up`
     restart: unless-stopped
     environment:
       DB_HOST: db
