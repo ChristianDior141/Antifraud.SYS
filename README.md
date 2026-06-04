@@ -78,6 +78,9 @@ kyc-aml-platform/
 ├── docs/
 │   ├── ARCHITECTURE.md             # System design documentation
 │   ├── SECURITY_COMPLIANCE_AUDIT.md# GDPR / ISO 27001 audit + roadmap
+│   ├── SCALABILITY_ARCHITECTURE_AUDIT.md # Enterprise/30M-user architecture audit + migration plan
+│   ├── ACCESS_MATRIX.md            # RBAC role × action matrix
+│   ├── CHANGELOG_SECURITY.md       # Before/after security changelog
 │   ├── RoPA.md                     # Records of Processing Activities (Art.30)
 │   └── INCIDENT_RESPONSE.md        # Breach notification & IR runbook
 ├── .github/workflows/ci.yml        # Tests, build, SAST, dep & secret scanning
