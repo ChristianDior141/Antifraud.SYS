@@ -17,6 +17,7 @@ from app.core.deps import get_current_user, security
 from app.models.user import User, UserRole
 from app.models.auth_tokens import RevokedToken, PasswordResetToken
 from app.services.audit_service import record_audit
+from app.services import monitoring_service as mon
 from app.schemas.user import (
     UserCreate, UserLogin, TokenResponse, UserResponse, UserUpdate, RefreshRequest,
     MFAVerify, PasswordReset, PasswordResetConfirm,
@@ -43,13 +44,19 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/register", response_model=UserResponse, status_code=201)
-async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
+async def register(user_in: UserCreate, request: Request, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == user_in.email))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already registered")
 
+    # Phone uniqueness (already normalised to E.164 by the schema validator)
+    dup_phone = await db.execute(select(User).where(User.phone_number == user_in.phone_number))
+    if dup_phone.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Phone number already registered")
+
     user = User(
         email=user_in.email,
+        phone_number=user_in.phone_number,
         full_name=user_in.full_name,
         hashed_password=get_password_hash(user_in.password),
         role=user_in.role,
@@ -57,9 +64,12 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
     db.add(user)
     await db.flush()
 
+    await mon.upsert_device(db, user.id, request)
     await record_audit(
         db, action="USER_REGISTERED", user_id=user.id, resource_type="user",
         resource_id=user.id, description=f"New user registered: {user.email}",
+        username=user.email, user_role=user.role.value if user.role else None,
+        ip_address=mon.client_ip(request), device_id=mon.device_id_from_request(request),
     )
     await db.commit()
     await db.refresh(user)
@@ -88,6 +98,8 @@ async def login(credentials: UserLogin, request: Request, db: AsyncSession = Dep
         )
 
     if not user or not verify_password(credentials.password, user.hashed_password):
+        await mon.record_failed_login(db, credentials.email, request,
+                                      user_id=user.id if user else None)
         if user:
             user.login_attempts = (user.login_attempts or 0) + 1
             log_action = "USER_LOGIN_FAILED"
@@ -95,14 +107,21 @@ async def login(credentials: UserLogin, request: Request, db: AsyncSession = Dep
                 user.locked_until = _utcnow() + timedelta(minutes=settings.ACCOUNT_LOCKOUT_MINUTES)
                 user.login_attempts = 0
                 log_action = "ACCOUNT_LOCKED"
+                await mon.record_security_event(
+                    db, event_type="multiple_failed_logins", severity="high",
+                    user_id=user.id, ip_address=client_ip,
+                    device_id=mon.device_id_from_request(request),
+                )
             db.add(user)
             await record_audit(
                 db, action=log_action, user_id=user.id, resource_type="user",
                 resource_id=user.id, description="Failed login attempt",
                 ip_address=client_ip, user_agent=request.headers.get("user-agent"),
-                status="failure",
+                status="failure", username=user.email,
+                user_role=user.role.value if user.role else None,
+                device_id=mon.device_id_from_request(request),
             )
-            await db.commit()
+        await db.commit()
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     if not user.is_active:
@@ -135,17 +154,26 @@ async def login(credentials: UserLogin, request: Request, db: AsyncSession = Dep
     user.last_login = _utcnow()
     db.add(user)
 
+    access = create_access_token(user.id)
+    refresh = create_refresh_token(user.id)
+    jti = (decode_token(access) or {}).get("jti")
+
+    # Device intelligence, session, IP/login history + security events
+    await mon.process_successful_login(db, user, request, jti)
+
     await record_audit(
         db, action="USER_LOGIN", user_id=user.id, resource_type="user",
         resource_id=user.id, description="User logged in",
         ip_address=client_ip, user_agent=request.headers.get("user-agent"),
+        username=user.email, user_role=user.role.value if user.role else None,
+        device_id=mon.device_id_from_request(request),
     )
     await db.commit()
     await db.refresh(user)
 
     return TokenResponse(
-        access_token=create_access_token(user.id),
-        refresh_token=create_refresh_token(user.id),
+        access_token=access,
+        refresh_token=refresh,
         user=UserResponse.model_validate(user),
     )
 
@@ -200,9 +228,12 @@ async def logout(
         exp = payload.get("exp")
         expires_at = datetime.fromtimestamp(exp, tz=timezone.utc) if exp else _utcnow()
         db.add(RevokedToken(jti=payload["jti"], user_id=current_user.id, expires_at=expires_at))
+        await mon.close_session_by_jti(db, payload["jti"])
         await record_audit(
             db, action="USER_LOGOUT", user_id=current_user.id, resource_type="user",
             resource_id=current_user.id, description="User logged out",
+            username=current_user.email,
+            user_role=current_user.role.value if current_user.role else None,
         )
         await db.commit()
     return {"message": "Logged out"}

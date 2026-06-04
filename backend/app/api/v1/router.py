@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from app.api.v1.endpoints import (
     auth, clients, documents, transactions, aml, reviews, analytics, admin,
-    incidents, detection_rules, privacy,
+    incidents, detection_rules, privacy, monitoring,
 )
 
 api_router = APIRouter()
@@ -17,3 +17,4 @@ api_router.include_router(admin.router)
 api_router.include_router(incidents.router)
 api_router.include_router(detection_rules.router)
 api_router.include_router(privacy.router)
+api_router.include_router(monitoring.router)

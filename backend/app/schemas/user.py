@@ -1,7 +1,18 @@
 from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional
 from datetime import datetime
+import phonenumbers
 from app.models.user import UserRole
+
+
+def validate_phone_e164(v: str) -> str:
+    try:
+        num = phonenumbers.parse(v, None)  # international format with leading +
+        if not phonenumbers.is_valid_number(num):
+            raise ValueError
+        return phonenumbers.format_number(num, phonenumbers.PhoneNumberFormat.E164)
+    except Exception:
+        raise ValueError("Invalid phone number; use international format, e.g. +14155552671")
 
 # Server-side password policy (ISO 27001 A.9.4.3 / OWASP ASVS V2.1).
 _SPECIAL_CHARS = set("!@#$%^&*()-_=+[]{};:,.<>?/|~`")
@@ -29,11 +40,17 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
+    phone_number: str  # required, international format
 
     @field_validator("password")
     @classmethod
     def password_strength(cls, v):
         return validate_password_strength(v)
+
+    @field_validator("phone_number")
+    @classmethod
+    def phone_valid(cls, v):
+        return validate_phone_e164(v)
 
 
 class UserUpdate(BaseModel):
@@ -45,8 +62,10 @@ class UserUpdate(BaseModel):
 
 class UserResponse(UserBase):
     id: int
+    phone_number: Optional[str] = None
     is_active: bool
     is_verified: bool
+    mfa_enabled: bool = False
     created_at: datetime
     last_login: Optional[datetime] = None
 

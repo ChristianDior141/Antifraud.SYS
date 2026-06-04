@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -7,6 +7,7 @@ from datetime import datetime
 
 from app.core.database import get_db
 from app.core.deps import require_analyst, require_compliance
+from app.services import monitoring_service as mon
 from app.models.user import User, UserRole
 from app.models.incident import (
     IncidentTicket, IncidentComment, IncidentAssignment, RiskAssessment, FalsePositive,
@@ -101,6 +102,7 @@ async def get_ticket(
 async def assign_ticket(
     ticket_id: int,
     body: AssignRequest,
+    request: Request,
     current_user: User = Depends(require_analyst),
     db: AsyncSession = Depends(get_db),
 ):
@@ -115,6 +117,11 @@ async def assign_ticket(
         assigned_by=current_user.id, note=body.note,
     ))
     db.add(ticket)
+    await mon.record_activity(
+        db, user=current_user, action_type="INCIDENT_ASSIGNED",
+        entity_type="incident_ticket", entity_id=ticket.id, request=request,
+        details=f"Assigned to user {body.assigned_to}",
+    )
     await db.commit()
     await db.refresh(ticket)
     return ticket
@@ -124,6 +131,7 @@ async def assign_ticket(
 async def update_status(
     ticket_id: int,
     body: StatusUpdate,
+    request: Request,
     current_user: User = Depends(require_analyst),
     db: AsyncSession = Depends(get_db),
 ):
@@ -139,6 +147,11 @@ async def update_status(
         # Reopening a previously closed ticket — clear the closure timestamp.
         ticket.closed_at = None
     db.add(ticket)
+    await mon.record_activity(
+        db, user=current_user, action_type="INCIDENT_STATUS_CHANGED",
+        entity_type="incident_ticket", entity_id=ticket.id, request=request,
+        details=f"Status -> {body.status.value}",
+    )
     await db.commit()
     await db.refresh(ticket)
     return ticket
@@ -179,6 +192,7 @@ async def add_comment(
 async def add_risk_assessment(
     ticket_id: int,
     body: RiskAssessmentCreate,
+    request: Request,
     current_user: User = Depends(require_analyst),
     db: AsyncSession = Depends(get_db),
 ):
@@ -193,6 +207,11 @@ async def add_risk_assessment(
     if ticket.status in (TicketStatus.NEW, TicketStatus.ASSIGNED):
         ticket.status = TicketStatus.IN_PROGRESS
     db.add(ticket)
+    await mon.record_activity(
+        db, user=current_user, action_type="RISK_ASSESSMENT_ADDED",
+        entity_type="incident_ticket", entity_id=ticket.id, request=request,
+        details=f"Risk level {body.risk_level.value}",
+    )
     await db.commit()
     await db.refresh(assessment)
     return assessment
@@ -202,6 +221,7 @@ async def add_risk_assessment(
 async def classify_ticket(
     ticket_id: int,
     body: ClassifyRequest,
+    request: Request,
     current_user: User = Depends(require_analyst),
     db: AsyncSession = Depends(get_db),
 ):
@@ -230,5 +250,10 @@ async def classify_ticket(
     if not ticket.closed_at:
         ticket.closed_at = datetime.utcnow()
     db.add(ticket)
+    await mon.record_activity(
+        db, user=current_user, action_type="INCIDENT_CLASSIFIED",
+        entity_type="incident_ticket", entity_id=ticket.id, request=request,
+        details=f"Classified as {body.classification.value}",
+    )
     await db.commit()
     return await _get_ticket(ticket_id, db)

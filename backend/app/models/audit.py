@@ -17,6 +17,11 @@ class AuditLog(Base):
     old_values = Column(JSON, nullable=True)
     new_values = Column(JSON, nullable=True)
 
+    # Denormalised actor context (so logs stay readable even if a user is later removed)
+    username = Column(String(255), nullable=True)
+    user_role = Column(String(50), nullable=True)
+    device_id = Column(String(128), nullable=True)
+
     ip_address = Column(String(45), nullable=True)
     user_agent = Column(String(500), nullable=True)
     status = Column(String(20), default="success")

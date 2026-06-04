@@ -45,6 +45,9 @@ async def record_audit(
     status: str = "success",
     old_values: Optional[dict] = None,
     new_values: Optional[dict] = None,
+    username: Optional[str] = None,
+    user_role: Optional[str] = None,
+    device_id: Optional[str] = None,
 ) -> AuditLog:
     """Append a hash-chained audit entry. Flushes so consecutive calls chain correctly."""
     last = (
@@ -65,7 +68,8 @@ async def record_audit(
         user_id=user_id, action=action, resource_type=resource_type,
         resource_id=resource_id, description=description, ip_address=ip_address,
         user_agent=user_agent, status=status, old_values=old_values,
-        new_values=new_values, prev_hash=prev_hash, entry_hash=entry_hash,
+        new_values=new_values, username=username, user_role=user_role,
+        device_id=device_id, prev_hash=prev_hash, entry_hash=entry_hash,
         created_at=created_at,
     )
     db.add(log)

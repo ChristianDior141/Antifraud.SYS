@@ -494,3 +494,97 @@ CREATE TABLE password_reset_tokens (
 );
 CREATE INDEX idx_prt_user ON password_reset_tokens(user_id);
 CREATE INDEX idx_prt_hash ON password_reset_tokens(token_hash);
+
+-- =============================================================
+-- USER IDENTITY & DEVICE INTELLIGENCE (Stage 6)
+-- =============================================================
+
+-- Required unique account phone (E.164)
+ALTER TABLE users ADD COLUMN phone_number VARCHAR(32) UNIQUE;
+
+-- Extended audit actor context
+ALTER TABLE audit_logs ADD COLUMN username  VARCHAR(255);
+ALTER TABLE audit_logs ADD COLUMN user_role VARCHAR(50);
+ALTER TABLE audit_logs ADD COLUMN device_id VARCHAR(128);
+
+CREATE TABLE devices (
+    id                  SERIAL PRIMARY KEY,
+    user_id             INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    device_id           VARCHAR(128) NOT NULL,
+    device_name         VARCHAR(255),
+    device_type         VARCHAR(50),
+    operating_system    VARCHAR(100),
+    browser             VARCHAR(100),
+    user_agent          TEXT,
+    screen_resolution   VARCHAR(50),
+    is_trusted          BOOLEAN DEFAULT FALSE,
+    first_seen          TIMESTAMPTZ DEFAULT NOW(),
+    last_seen           TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (user_id, device_id)
+);
+CREATE INDEX idx_devices_user ON devices(user_id);
+
+CREATE TABLE user_sessions (
+    id                  SERIAL PRIMARY KEY,
+    user_id             INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    token_jti           VARCHAR(64),
+    device_id           VARCHAR(128),
+    ip_address          VARCHAR(45),
+    user_agent          TEXT,
+    login_at            TIMESTAMPTZ DEFAULT NOW(),
+    last_activity_at    TIMESTAMPTZ DEFAULT NOW(),
+    logout_at           TIMESTAMPTZ,
+    is_active           BOOLEAN DEFAULT TRUE
+);
+CREATE INDEX idx_sessions_user ON user_sessions(user_id);
+CREATE INDEX idx_sessions_jti ON user_sessions(token_jti);
+
+CREATE TABLE login_history (
+    id                  SERIAL PRIMARY KEY,
+    user_id             INTEGER REFERENCES users(id),
+    email               VARCHAR(255),
+    ip_address          VARCHAR(45),
+    device_id           VARCHAR(128),
+    user_agent          TEXT,
+    success             BOOLEAN DEFAULT TRUE,
+    created_at          TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_login_history_user ON login_history(user_id);
+
+CREATE TABLE ip_history (
+    id                  SERIAL PRIMARY KEY,
+    user_id             INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    ip_address          VARCHAR(45) NOT NULL,
+    first_seen          TIMESTAMPTZ DEFAULT NOW(),
+    last_seen           TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (user_id, ip_address)
+);
+
+CREATE TABLE user_activity_logs (
+    id                  SERIAL PRIMARY KEY,
+    user_id             INTEGER REFERENCES users(id),
+    username            VARCHAR(255),
+    role                VARCHAR(50),
+    action_type         VARCHAR(100) NOT NULL,
+    entity_type         VARCHAR(50),
+    entity_id           INTEGER,
+    ip_address          VARCHAR(45),
+    device_id           VARCHAR(128),
+    result              VARCHAR(20) DEFAULT 'success',
+    details             TEXT,
+    created_at          TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_activity_user ON user_activity_logs(user_id);
+
+CREATE TABLE security_events (
+    id                  SERIAL PRIMARY KEY,
+    event_type          VARCHAR(100) NOT NULL,
+    severity            VARCHAR(20) DEFAULT 'medium',
+    user_id             INTEGER REFERENCES users(id),
+    ip_address          VARCHAR(45),
+    device_id           VARCHAR(128),
+    event_metadata      JSONB,
+    resolved            BOOLEAN DEFAULT FALSE,
+    created_at          TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_security_events_user ON security_events(user_id);
