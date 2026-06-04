@@ -76,7 +76,11 @@ kyc-aml-platform/
 │   ├── schema.sql              # Full PostgreSQL DDL
 │   └── init.sql                # Docker init script
 ├── docs/
-│   └── ARCHITECTURE.md        # System design documentation
+│   ├── ARCHITECTURE.md             # System design documentation
+│   ├── SECURITY_COMPLIANCE_AUDIT.md# GDPR / ISO 27001 audit + roadmap
+│   ├── RoPA.md                     # Records of Processing Activities (Art.30)
+│   └── INCIDENT_RESPONSE.md        # Breach notification & IR runbook
+├── .github/workflows/ci.yml        # Tests, build, SAST, dep & secret scanning
 └── docker-compose.yml
 ```
 

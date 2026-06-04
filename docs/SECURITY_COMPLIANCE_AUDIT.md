@@ -28,8 +28,8 @@
 | 12 | Документы клиентов не шифруются на диске | Высокий | GDPR Art.32 | ✅ Исправлено (Stage 3) |
 | 13 | MFA-поля есть, логики нет | Средний | A.9.4 / ASVS V2.8 | ✅ Исправлено (Stage 4) |
 | 14 | Логи аудита изменяемы | Средний | A.12.4.2 | ✅ Исправлено (Stage 2) |
-| 15 | Нет управления уязвимостями / CI security | Средний | A.12.6 / NIST PR.IP | ⏳ Stage 5 |
-| 16 | Нет процессов RoPA / breach notification | Средний | GDPR Art.30/33-34 | ⏳ Stage 5 |
+| 15 | Нет управления уязвимостями / CI security | Средний | A.12.6 / NIST PR.IP | ✅ Исправлено (Stage 5) |
+| 16 | Нет процессов RoPA / breach notification | Средний | GDPR Art.30/33-34 | ✅ Исправлено (Stage 5) |
 
 ---
 
@@ -400,9 +400,12 @@ CREATE TABLE security_events (
 - **Отложено (отдельной задачей):** новые роли Auditor/DPO и device trust — чтобы не дестабилизировать ролевую модель и UI.
 - Приоритет: Medium-High • Сложность: средняя • Эффект: зрелая аутентификация и least-privilege.
 
-### Этап 5 — AI-Powered Fraud Detection & Governance
-- ML fraud scoring (интерпретируемый), graph analytics, adverse media, реальные санкционные фиды; CI security pipeline, Vault/KMS, RoPA и процессы breach notification.
-- Приоритет: Medium • Сложность: высокая • Эффект: продвинутое выявление мошенничества + операционная зрелость.
+### Этап 5 — Governance & Secure SDLC ✅ (governance-часть выполнена)
+- **CI security pipeline** (`.github/workflows/ci.yml`): backend-тесты (pytest), сборка фронта (`tsc + vite`), SAST (bandit), сканирование зависимостей (pip-audit, npm audit), secret-scanning (gitleaks).
+- **RoPA** (`docs/RoPA.md`) — реестр операций обработки (GDPR Art.30).
+- **Incident Response & Breach Notification** (`docs/INCIDENT_RESPONSE.md`) — процесс реагирования и уведомления (Art.33/34, ISO A.16, NIST 800-61).
+- **Отложено как отдельные крупные инициативы:** ML fraud scoring (интерпретируемый), graph analytics, adverse media, реальные санкционные фиды, Vault/KMS-интеграция, SIEM + таблица `security_events`.
+- Приоритет: Medium • Сложность: высокая • Эффект: операционная зрелость, прослеживаемость, безопасный SDLC.
 
 ---
 

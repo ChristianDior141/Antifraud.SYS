@@ -1,0 +1,87 @@
+name: CI & Security
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-tests:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install aiosqlite
+      - name: Run tests
+        run: pytest tests/ -v
+
+  frontend-build:
+    name: Frontend type-check & build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install dependencies
+        run: npm install
+      - name: Build (tsc + vite)
+        run: npm run build
+
+  security-scan:
+    name: Security scanning (SAST / deps / secrets)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # --- SAST (Python) ---
+      - name: Bandit (Python SAST)
+        continue-on-error: true
+        run: |
+          pip install bandit
+          bandit -r backend/app -ll
+
+      # --- Dependency vulnerability scanning ---
+      - name: pip-audit (Python deps)
+        continue-on-error: true
+        run: |
+          pip install pip-audit
+          pip-audit -r backend/requirements.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: npm audit (frontend deps)
+        continue-on-error: true
+        working-directory: frontend
+        run: |
+          npm install --package-lock-only
+          npm audit --audit-level=high
+
+      # --- Secret scanning ---
+      - name: Gitleaks (secret scanning)
+        continue-on-error: true
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
