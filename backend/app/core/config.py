@@ -67,6 +67,17 @@ class Settings(BaseSettings):
     MAX_FILE_SIZE_MB: int = 10
     ALLOWED_DOCUMENT_TYPES: List[str] = ["image/jpeg", "image/png", "application/pdf"]
 
+    # Document storage: "local" (single instance) or "s3" (S3/MinIO — shared,
+    # works across horizontally-scaled instances). Files are encrypted with
+    # Fernet before storage regardless of backend.
+    STORAGE_BACKEND: str = "local"
+    LOCAL_UPLOAD_DIR: str = "uploads/documents"
+    S3_ENDPOINT_URL: Optional[str] = None   # e.g. http://minio:9000 (omit for AWS S3)
+    S3_BUCKET: str = "kyc-documents"
+    S3_ACCESS_KEY: Optional[str] = None
+    S3_SECRET_KEY: Optional[str] = None
+    S3_REGION: str = "us-east-1"
+
     FIRST_SUPERUSER_EMAIL: str = "admin@kyc-platform.com"
     FIRST_SUPERUSER_PASSWORD: str = "Admin123!@#"
 

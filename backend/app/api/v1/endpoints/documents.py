@@ -1,4 +1,3 @@
-import os
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
 from fastapi.responses import Response
@@ -15,11 +14,9 @@ from app.models.document import Document, DocumentType, DocumentStatus
 from app.schemas.document import DocumentResponse, DocumentReview
 from app.services.audit_service import log_pii_access
 from app.services import monitoring_service as mon
+from app.services.storage import get_storage
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
-
-UPLOAD_DIR = "uploads/documents"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 @router.post("/upload", response_model=DocumentResponse, status_code=201)
@@ -46,17 +43,16 @@ async def upload_document(
 
     ext = file.filename.rsplit(".", 1)[-1] if "." in file.filename else "bin"
     stored_name = f"{uuid.uuid4()}.{ext}.enc"
-    file_path = os.path.join(UPLOAD_DIR, stored_name)
-    # Encrypt the file contents at rest (GDPR Art.32).
-    with open(file_path, "wb") as f:
-        f.write(encrypt_bytes(content))
+    # Encrypt the file contents at rest (GDPR Art.32), then store via the
+    # configured backend (local disk or S3/MinIO).
+    get_storage().put(stored_name, encrypt_bytes(content))
 
     doc = Document(
         client_id=profile.id,
         document_type=document_type,
         original_filename=file.filename,
         stored_filename=stored_name,
-        file_path=file_path,
+        file_path=stored_name,
         file_size=len(content),
         mime_type=file.content_type,
         status=DocumentStatus.PENDING,
@@ -132,11 +128,11 @@ async def download_document(
     if not (is_owner or is_staff):
         raise HTTPException(status_code=403, detail="Not authorized to access this document")
 
-    if not os.path.exists(doc.file_path):
+    storage = get_storage()
+    if not storage.exists(doc.file_path):
         raise HTTPException(status_code=404, detail="File missing from storage")
 
-    with open(doc.file_path, "rb") as f:
-        plaintext = decrypt_bytes(f.read())
+    plaintext = decrypt_bytes(storage.get(doc.file_path))
 
     # Record staff access to a client's personal document.
     if is_staff and not is_owner:
